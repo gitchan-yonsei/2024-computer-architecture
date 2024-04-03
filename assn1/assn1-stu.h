@@ -5,7 +5,16 @@
 
 template<size_t N>
 void NANDGate<N>::advanceCycle() {
-  /* FIXME */
+    _output->reset();
+
+    for (size_t i = 0; i < N; i++) {
+        unsigned tmp1 = _inputs[0]->test(i);
+        unsigned tmp2 = _inputs[1]->test(i);
+
+        bool result = !(tmp1 && tmp2);
+
+        _output->set(i, result);
+    }
 }
 
 template<size_t N>
