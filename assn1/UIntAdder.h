@@ -26,9 +26,9 @@ class UIntAdder : public DigitalCircuit {
     virtual void advanceCycle() {
       _output->reset();
 
-      unsigned tmp = 0;
+      unsigned tmp = 0; // 올림 처리
       for(size_t i = 0; i < N; i++) {
-        if (_inputs[0]->test(i)) { tmp++; }
+        if (_inputs[0]->test(i)) { tmp++; } // i번째 비트 값 반환
         if (_inputs[1]->test(i)) { tmp++; }
 
         _output->set(i, (tmp % 2) == 1 ? true : false);
