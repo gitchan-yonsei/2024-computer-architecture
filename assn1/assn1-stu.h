@@ -123,7 +123,16 @@ void LogicalUnit<N>::advanceCycle() {
 
 template<size_t N, size_t M>
 void HashTable<N, M>::advanceCycle() {
-  /* FIXME */
+    _output->reset();
+
+    size_t index = _index->to_ulong();
+
+    if (_isWrite->test(0)) {
+        _entries[index] = _input->to_ullong();
+        *_output = 0;
+    } else {
+        *_output = _entries[index];
+    }
 }
 
 template<size_t N, size_t D>
