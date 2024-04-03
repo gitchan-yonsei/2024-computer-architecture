@@ -34,7 +34,26 @@ void SignedAdder<N>::advanceCycle() {
 
 template<size_t N>
 void SignedSubtractor<N>::advanceCycle() {
-  /* FIXME */
+    _output->reset();
+
+    Wire<N> complement = ~(*_inputs[1]);
+
+    unsigned addValue = 1;
+    for(size_t i = 0; i < N; i++) {
+        unsigned tmp = complement.test(i) + addValue;
+        complement.set(i, (tmp % 2) == 1 ? true : false);
+        addValue = tmp / 2;
+    }
+
+    unsigned tmp = 0;
+    for(size_t i = 0; i < N; i++) {
+        if (_inputs[0]->test(i)) { tmp++; }
+        if (complement.test(i)) { tmp++; }
+
+        _output->set(i, (tmp % 2) == 1 ? true : false);
+
+        tmp /= 2;
+    }
 }
 
 template<size_t N>
