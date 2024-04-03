@@ -63,14 +63,9 @@ void LogicalUnit<N>::advanceCycle() {
     bool op_0 = _operation->test(2);
     bool op_1 = _operation->test(1);
     bool op_2 = _operation->test(0);
-    printf("%d", op_0);
-    printf("%d", op_1);
-    printf("%d", op_2);
-
 
     if (op_0 == 0 && op_1 == 0 && op_2 == 0) {
         // AND operation
-        printf("%s\n", "AND");
         for (size_t i = 0; i < N; i++) {
             bool input0_bit = _inputs[0]->test(i);
             bool input1_bit = _inputs[1]->test(i);
@@ -79,7 +74,6 @@ void LogicalUnit<N>::advanceCycle() {
     }
     if (op_0 == 0 && op_1 == 0 && op_2 == 1) {
         // OR operation
-        printf("%s\n", "OR");
         for (size_t i = 0; i < N; i++) {
             bool input0_bit = _inputs[0]->test(i);
             bool input1_bit = _inputs[1]->test(i);
@@ -88,7 +82,6 @@ void LogicalUnit<N>::advanceCycle() {
     }
     if (op_0 == 0 && op_1 == 1 && op_2 == 0) {
         // XOR operation
-        printf("%s\n", "XOR");
         for (size_t i = 0; i < N; i++) {
             bool input0_bit = _inputs[0]->test(i);
             bool input1_bit = _inputs[1]->test(i);
@@ -97,7 +90,6 @@ void LogicalUnit<N>::advanceCycle() {
     }
     if (op_0 == 0 && op_1 == 1 && op_2 == 1) {
         // NOT operation
-        printf("%s\n", "NOT");
         for (size_t i = 0; i < N; i++) {
             bool input0_bit = _inputs[0]->test(i);
             _output->set(i, !input0_bit);
@@ -105,7 +97,6 @@ void LogicalUnit<N>::advanceCycle() {
     }
     if (op_0 == 1 && op_1 == 0 && op_2 == 0) {
         // NAND operation
-        printf("%s\n", "NAND");
         for (size_t i = 0; i < N; i++) {
             bool input0_bit = _inputs[0]->test(i);
             bool input1_bit = _inputs[1]->test(i);
@@ -114,7 +105,6 @@ void LogicalUnit<N>::advanceCycle() {
     }
     if (op_0 == 1 && op_1 == 0 && op_2 == 1) {
         // NOR operation
-        printf("%s\n", "NOR");
         for (size_t i = 0; i < N; i++) {
             bool input0_bit = _inputs[0]->test(i);
             bool input1_bit = _inputs[1]->test(i);
@@ -123,7 +113,6 @@ void LogicalUnit<N>::advanceCycle() {
     }
     if (op_0 == 1 && op_1 == 1 && op_2 == 0) {
         // XNOR operation
-        printf("%s\n", "XNOR");
         for (size_t i = 0; i < N; i++) {
             bool input0_bit = _inputs[0]->test(i);
             bool input1_bit = _inputs[1]->test(i);
