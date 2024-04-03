@@ -19,7 +19,17 @@ void NANDGate<N>::advanceCycle() {
 
 template<size_t N>
 void SignedAdder<N>::advanceCycle() {
-  /* FIXME */
+    _output->reset();
+
+    unsigned tmp = 0;
+    for(size_t i = 0; i < N; i++) {
+        if (_inputs[0]->test(i)) { tmp++; }
+        if (_inputs[1]->test(i)) { tmp++; }
+
+        _output->set(i, (tmp % 2) == 1 ? true : false);
+
+        tmp /= 2;
+    }
 }
 
 template<size_t N>
