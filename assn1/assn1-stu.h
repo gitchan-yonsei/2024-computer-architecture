@@ -22,7 +22,7 @@ void SignedAdder<N>::advanceCycle() {
     _output->reset();
 
     unsigned tmp = 0;
-    for(size_t i = 0; i < N; i++) {
+    for (size_t i = 0; i < N; i++) {
         if (_inputs[0]->test(i)) { tmp++; }
         if (_inputs[1]->test(i)) { tmp++; }
 
@@ -39,14 +39,14 @@ void SignedSubtractor<N>::advanceCycle() {
     Wire<N> complement = ~(*_inputs[1]);
 
     unsigned addValue = 1;
-    for(size_t i = 0; i < N; i++) {
+    for (size_t i = 0; i < N; i++) {
         unsigned tmp = complement.test(i) + addValue;
         complement.set(i, (tmp % 2) == 1 ? true : false);
         addValue = tmp / 2;
     }
 
     unsigned tmp = 0;
-    for(size_t i = 0; i < N; i++) {
+    for (size_t i = 0; i < N; i++) {
         if (_inputs[0]->test(i)) { tmp++; }
         if (complement.test(i)) { tmp++; }
 
@@ -137,7 +137,17 @@ void HashTable<N, M>::advanceCycle() {
 
 template<size_t N, size_t D>
 void DelayQueue<N, D>::advanceCycle() {
-  /* FIXME */
+    *_output = _entries[0].to_ulong();
+
+    for (size_t i = 1; i <= D - 1; i++) {
+        _entries[i - 1] = _entries[i];
+    }
+
+    if (_isPush->test(0) == 1) {
+        _entries[D - 1] = _input->to_ulong();
+    } else {
+        _entries[D - 1] = 0;
+    }
 }
 
 #endif
