@@ -132,24 +132,22 @@ binarySearch0:
 
 ################################################################################
 # FIXME
-
-  add $t2, $t0, $t1
-  srl $t2, $t2, 1
-
-  sll $t4, $t2, 2
-  add $t3, $s1, $t4
-  lw $t3, 0($t3)
-
-  beq $t3, $s2, binarySearch1
-
-  bge $t0, $t1, binarySearch1
-
-  bgt $t3, $s2, binarySearch2
-
-binarySearch2:
-  addi $t0, $t2, 1
-
-  j binarySearch0
+  bge $t0, $t1, binarySearch1     # Exit loop if $t0 exceeds $t1
+  add $t2, $t0, $t1                # Calculate midpoint: ($t0 + $t1)
+  srl $t2, $t2, 1                  # Divide by 2 (shift right)
+  sll $t3, $t2, 2                  # Multiply by 4 to get byte offset
+  add $t3, $s1, $t3                # Add offset to base address of array
+  lw $t4, 0($t3)                   # Load the value at the midpoint
+  beq $t4, $s2, found              # If midpoint value equals target, exit loop
+  bgt $t4, $s2, greater            # If midpoint value > target, search left half
+  addi $t0, $t2, 1                 # Update lower bound to search right half
+  j binarySearch0_loop             # Jump back to loop start
+greater:
+  addi $t1, $t2, -1                # Update upper bound to search left half
+  j binarySearch0_loop             # Jump back to loop start
+found:
+  move $v0, $t2                    # Store the index of the found element in $v0
+  j binarySearch1                  # Exit loop
 
 # FIXME
 ################################################################################
