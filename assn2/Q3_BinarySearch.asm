@@ -130,13 +130,27 @@ binarySearch0:
   # $v0 = $s3
   move $v0, $s3
 
-################################################################################
-# FIXME
+  add $t2, $t0, $t1
+  srl $t2, $t2, 1
 
-  nop
+  sll $t3, $t2, 2
+  add $t3, $t3, $s1
+  lw $t4, 0($t3)
 
-# FIXME
-################################################################################
+  bne $t4 $s2, continue
+  move $v0, $t2
+
+continue:
+  beq $t0, $t1, binarySearch1
+  bgt $t4, $s2, searchRight
+
+searchLeft:
+  move $t1, $t2
+  j binarySearch0
+
+searchRight:
+  move $t0, $t2
+  j binarySearch0
 
 binarySearch1:
 
