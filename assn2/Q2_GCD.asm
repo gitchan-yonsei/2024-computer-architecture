@@ -17,13 +17,31 @@ str2:
 # $v0: the greatest common divisor of $a0 and $a1
 calculateGCD:
 
-################################################################################
-# FIXME
+calculateGCD:
+    # a0 = a, a1 = b
+    move $t0, $a0    # $t0 = a
+    move $t1, $a1    # $t1 = b
 
-  nop
+loop:
+    # if b == 0, gcd = a
+    beq $t1, $zero, done
 
-# FIXME
-################################################################################
+    # temp = a % b
+    div $t0, $t1
+    mfhi $t2    # $t2 = remainder
+
+    # a = b, b = temp
+    move $t0, $t1    # $t0 = $t1
+    move $t1, $t2    # $t1 = $t2
+
+    j loop
+
+done:
+    # gcd = a
+    move $v0, $t0
+
+    # return
+    jr $ra
 
   # return
   jr $ra
