@@ -16,8 +16,6 @@ str2:
 # $a1: a 32-bit unsigned integer
 # $v0: the greatest common divisor of $a0 and $a1
 calculateGCD:
-
-calculateGCD:
     # a0 = a, a1 = b
     move $t0, $a0    # $t0 = a
     move $t1, $a1    # $t1 = b
@@ -42,9 +40,6 @@ done:
 
     # return
     jr $ra
-
-  # return
-  jr $ra
 
 .globl main
 main:
