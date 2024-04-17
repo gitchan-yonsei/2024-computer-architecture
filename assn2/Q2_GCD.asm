@@ -17,13 +17,33 @@ str2:
 # $v0: the greatest common divisor of $a0 and $a1
 calculateGCD:
 
-################################################################################
-# FIXME
+  move $s0, $ra
 
-  nop
+  blt $a1, $a0, switchRegisters
 
-# FIXME
-################################################################################
+  move $t0, $a0
+  move $t1, $a1
+
+switchRegisters:
+
+  move $t0, $a1
+  move $t1, $a0
+
+calculateGCD_Loop:
+
+  beq $t1, $zero, calculateGCD_exit
+  divu $t0, $t1
+  mfhi $t2
+
+  move $t0, $t1
+  move $t1, $t2
+
+  j calculateGCD_Loop
+
+calculateGCD_exit:
+
+  move $v0, $t0
+  move $ra, $s0
 
   # return
   jr $ra
