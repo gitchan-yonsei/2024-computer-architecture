@@ -141,10 +141,10 @@ binarySearch0:
   beq $t4, $s2, found              # If midpoint value equals target, exit loop
   bgt $t4, $s2, greater            # If midpoint value > target, search left half
   addi $t0, $t2, 1                 # Update lower bound to search right half
-  j binarySearch0_loop             # Jump back to loop start
+  j binarySearch0                  # Jump back to loop start
 greater:
   addi $t1, $t2, -1                # Update upper bound to search left half
-  j binarySearch0_loop             # Jump back to loop start
+  j binarySearch0                  # Jump back to loop start
 found:
   move $v0, $t2                    # Store the index of the found element in $v0
   j binarySearch1                  # Exit loop
