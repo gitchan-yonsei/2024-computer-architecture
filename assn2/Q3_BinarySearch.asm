@@ -128,29 +128,38 @@ binarySearch0:
   syscall
 
   # $v0 = $s3
-  move $v0, $s3
+ # 중간 인덱스 계산
+  add $t2, $t0, $t1       # $t2 = $t0 + $t1
+  srl $t2, $t2, 1          # $t2 = ($t0 + $t1) / 2
 
-  add $t2, $t0, $t1
-  srl $t2, $t2, 1
+  # 중간 요소 로드
+  sll $t3, $t2, 2          # $t3 = $t2 * 4 (요소 크기가 4바이트이므로)
+  add $t3, $t3, $s1        # $t3 = 중간 요소의 주소
+  lw $t4, 0($t3)           # $t4 = 중간 요소의 값
 
-  sll $t3, $t2, 2
-  add $t3, $t3, $s1
-  lw $t4, 0($t3)
+  # 중간 요소와 찾고자 하는 대상 비교
+  beq $t4, $s2, binarySearch_found  # 중간 요소가 찾고자 하는 대상이면 발견한 것으로 처리
+  bgt $t4, $s2, binarySearch_left  # 중간 요소가 더 크면 왼쪽 절반을 탐색
+  blt $t4, $s2, binarySearch_right # 중간 요소가 더 작으면 오른쪽 절반을 탐색
 
-  bne $t4 $s2, continue
-  move $v0, $t2
+binarySearch_continue:
+  # 검색 범위를 조절하여 다시 이진 검색 실행
+  j binarySearch0
 
-continue:
-  beq $t0, $t1, binarySearch1
-  bgt $t4, $s2, searchRight
-
-searchLeft:
+binarySearch_left:
+  # 중간 요소가 더 크면 왼쪽 절반을 탐색
   move $t1, $t2
-  j binarySearch0
+  j binarySearch_continue
 
-searchRight:
-  move $t0, $t2
-  j binarySearch0
+binarySearch_right:
+  # 중간 요소가 더 작으면 오른쪽 절반을 탐색
+  addi $t0, $t2, 1
+  j binarySearch_continue
+
+binarySearch_found:
+  # 중간 요소가 찾고자 하는 대상이면 중간 인덱스 반환
+  move $v0, $t2
+  j binarySearch1
 
 binarySearch1:
 
