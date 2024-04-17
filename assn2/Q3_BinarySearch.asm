@@ -133,27 +133,7 @@ binarySearch0:
 ################################################################################
 # FIXME
 
-  # $t2 = ($t0 + $t1) / 2
-  add $t2, $t0, $t1
-  srl $t2, $t2, 1
-
-  # $t3 = array[$t2]
-  sll $t4, $t2, 2
-  add $t3, $s1, $t4
-  lw $t3, 0($t3)
-
-  # if ($t3 == $s2) then $v0 = $t2
-  beq $t3, $s2, binarySearch1
-
-  # if ($t0 >= $t1) then jump to binarySearch1
-  bge $t0, $t1, binarySearch1
-
-  # if ($t3 > $s2) then $t1 = $t2
-  bgt $t3, $s2, binarySearch2
-
-  # if ($t3 < $s2) then $t0 = $t2 + 1
-binarySearch2:
-  addi $t0, $t2, 1
+  nop
 
 # FIXME
 ################################################################################
