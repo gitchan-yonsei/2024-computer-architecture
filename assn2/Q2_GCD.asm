@@ -19,30 +19,27 @@ calculateGCD:
 
   move $s0, $ra
 
+  # Compare $a0 and $a1
   blt $a1, $a0, switchRegisters
-
-  move $t0, $a0
-  move $t1, $a1
-
-switchRegisters:
-
-  move $t0, $a1
-  move $t1, $a0
+  move $t0, $a1   # If $a1 is greater, move it to $t0
+  move $a1, $a0   # Move $a0 to $a1
+  move $a0, $t0   # Move $t0 (original $a1) to $a0
+  switchRegisters:
 
 calculateGCD_Loop:
 
-  beq $t1, $zero, calculateGCD_exit
-  divu $t0, $t1
+  beq $a1, $zero, calculateGCD_exit
+  divu $a0, $a1
   mfhi $t2
 
-  move $t0, $t1
-  move $t1, $t2
+  move $a0, $a1
+  move $a1, $t2
 
   j calculateGCD_Loop
 
 calculateGCD_exit:
 
-  move $v0, $t0
+  move $v0, $a0
   move $ra, $s0
 
   # return
