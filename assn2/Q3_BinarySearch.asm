@@ -137,15 +137,6 @@ binarySearch0:
   addu $t2, $t0, $t1    # $t2 = $t0 + $t1
   srl $t2, $t2, 1       # $t2 = ($t0 + $t1) / 2, shift right by 1 divides by 2
 
-  # Print value of t2 (mid index)
-  li $v0, 1             # syscall for printing integer
-  move $a0, $t2         # move the value of t2 into a0 (argument for syscall)
-  syscall               # perform syscall to print integer
-
-  li $v0, 4             # syscall for printing string (print newline)
-  la $a0, newline
-  syscall
-
   # Access the element at the middle index
   sll $t4, $t2, 2       # $t4 = $t2 * 4, as each integer is 4 bytes
   add $t3, $s1, $t4     # $t3 = base address of array + offset to element at $t2
