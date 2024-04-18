@@ -49,26 +49,41 @@ compareStrings:
 # FIXME
 
   # Set index register $t0 to 0 (loop index)
-  move $t0, $zero
+  move $t0, $zero       # 루프 횟수 카운팅
+  move $t3, $zero       # 1st string 길이
+  move $t4, $zero       # 2nd string 길이
+
 
 loop:
   # Load byte from each string
   lb $t1, 0($a0)  # Load byte from address in $a0
   lb $t2, 0($a1)  # Load byte from address in $a1
 
-  # Compare characters
+  beq $t1, $zero, string1Ended
+  beq $t2, $zero, first_string_greater
+
+    # Increment string pointers for next iteration
+    addi $a0, $a0, 1
+    addi $a1, $a1, 1
+
+    # Increment index register $t0
+    addi $t0, $t0, 1
+
+      # Continue loop
+      j loop
+
+ string1Ended:
+   bne $t2, $zero, second_string_greater
+   j sameLength
+
+ sameLength:
+  move $t0, $zero
   bne $t1, $t2, characters_differ
-  beq $t1, $zero, strings_equal  # If $t1 (also $t2, since they are equal here) is zero, end loop as strings are equal
+  beq $t1, $zero, strings_equal
 
-  # Increment string pointers for next iteration
-  addi $a0, $a0, 1
-  addi $a1, $a1, 1
-
-  # Increment index register $t0
-  addi $t0, $t0, 1
-
-  # Continue loop
-  j loop
+first_string_greater:
+  li $v0, 1
+  j end_compare
 
 characters_differ:
   # Determine which string is greater
@@ -83,6 +98,7 @@ second_string_greater:
 
 strings_equal:
   li $v0, 0           # Strings are equal
+  j end_compare
 
 end_compare:
 
