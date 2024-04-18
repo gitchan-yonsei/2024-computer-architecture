@@ -48,69 +48,43 @@ compareStrings:
 ################################################################################
 # FIXME
 
-  # Set index register $t0 to 0 (loop index)
-  move $t0, $zero       # 루프 횟수 카운팅
-  move $t3, $zero       # 1st string 길이
-  move $t4, $zero       # 2nd string 길이
+  move $s0, $a0         # 1st string 시작 주소 -> $s0
+  move $s1, $a1         # 2nd string 시작 주소 -> $s1
 
+  li $t0, $zero         # 현재 string index
 
 lengthCompareLoop:
-  # Load byte from each string
-  lb $t1, 0($a0)  # Load byte from address in $a0
-  lb $t2, 0($a1)  # Load byte from address in $a1
+  lb $t1, 0($s0)      # 1st string의 1 Byte
+  lb $t2, 0($s1)      # 2nd string의 1 Byte
 
+  # if (string1[t] == 0)
   beq $t1, $zero, string1Ended
-  beq $t2, $zero, first_string_greater
 
-  # Increment string pointers for next iteration
-  addi $a0, $a0, 1
-  addi $a1, $a1, 1
+  # if (string1[t] != 0)
+  beq $t2, $zero, string1Greater
 
-  # Increment index register $t0
+  # if (string1[t] != 0 && string2[t] != 0)
   addi $t0, $t0, 1
-
-  # Continue loop
+  addi $s0, $s0, 1
+  addi $s1, $s1, 1
   j lengthCompareLoop
 
 string1Ended:
-  bne $t2, $zero, second_string_greater
-  j sameLength
+  bne $t2, $zero, string2Greater
+  j compareContents
 
-first_string_greater:
+string1Greater:
   li $v0, 1
-  j end_compare
+  j exit
 
-second_string_greater:
-  li $v0, -1          # $v0 = -1 if second string is greater
-  j end_compare
+string2Greater:
+  li $v0, -1
+  j exit
 
-strings_equal:
-  li $v0, 0           # Strings are equal
-  j end_compare
+compareContents:
+// 구현하자~
 
-sameLength:
-  sub $a0, $a0, $t0
-  sub $a1, $a1, $t0
-  move $t0, $zero
-
-contentCompareLoop:
-  bne $t1, $t2, characters_differ
-  beq $t1, $zero, strings_equal
-
-  addi $a0, $a0, 1
-  addi $a1, $a1, 1
-  addi $t0, $t0, 1
-
-  j contentCompareLoop
-
-characters_differ:
-  slt $t3, $t1, $t2  # If $t1 < $t2, $t3 = 1
-  bne $t3, $zero, second_string_greater
-  li $v0, 1           # $v0 = 1 if first string is greater
-  j end_compare
-
-end_compare:
-
+exit:
 # FIXME
 ################################################################################
 
