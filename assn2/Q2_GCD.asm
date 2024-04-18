@@ -20,7 +20,7 @@ calculateGCD:
     move $t1, $a1
 
 loop:
-    beq $t1, $zero, done
+    beq $t1, $zero, exit
 
     div $t0, $t1
     mfhi $t2
@@ -30,9 +30,8 @@ loop:
 
     j loop
 
-done:
+exit:
     move $v0, $t0
-
     jr $ra
 
 .globl main
