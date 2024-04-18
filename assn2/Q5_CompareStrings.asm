@@ -51,7 +51,7 @@ compareStrings:
   move $s0, $a0         # 1st string 시작 주소 -> $s0
   move $s1, $a1         # 2nd string 시작 주소 -> $s1
 
-  li $t0, $zero         # 현재 string index
+  li $t0, 0             # 현재 string index
 
 lengthCompareLoop:
   lb $t1, 0($s0)      # 1st string의 1 Byte
