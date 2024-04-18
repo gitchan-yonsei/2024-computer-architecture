@@ -104,7 +104,7 @@ recursiveInsertionSort:
 
   ble $s0, $zero, exit          # if (N <= 0) exit
 
-  addi, $a0, $s0, -1
+  addi $a0, $s0, -1
   move $a1, $s1
   jal recursiveInsertionSort
 
@@ -113,6 +113,35 @@ recursiveInsertionSort:
   sll $t0, $t0, 2               # $t0 = 4 * (N - 1) -> offset
   add $t1, $s1, $t0             # $t1 = base + offset -> memory address of array[N - 1]
   lw $t0, 0($t1)                # $t0 = array[N - 1]
+
+  # unsigned int j = 2 -> $t1
+  li $t1, 2
+
+  sortLoop:
+
+    # while 조건 검사
+    # j <= N
+    slt $t2, $t1, $s0           # j <= N -> $t2 = 1
+    beq $t2, $zero, exitSortLoop
+
+    # array[N - j] > x
+    sub $t3, $s0, $t1           # $t3 = N - j
+    sll $t3, $t3, 2             # Byte offset (for int type)
+    add $t4, $s1, $t3           # $t4 = base + offset (N-j), 즉 array[N - j]의 주소
+    lw $t5, 0($t4)              # $t5 = array[N -j]
+    ble $t5, $t0, exitSortLoop  # array[N - j] <= x -> exit
+
+    # array[N - j + 1] = array[N - j]
+    addi $t6, $t4, 4            # $t6 <- array[N - j + 1]의 주소
+    sw $t5, 0($t6)              # array[N - j + 1] = array[N - j]
+
+    # j++
+    addi $t1, $t1, 1
+    j sortLoop
+
+  exitSortLoop:
+    # array[N - j + 1] = x;
+    sw $t0, 0($t6)
 
   exit:
     j recursiveInsertionSort_exit
