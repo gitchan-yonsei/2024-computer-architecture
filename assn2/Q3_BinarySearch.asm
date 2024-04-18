@@ -133,35 +133,7 @@ binarySearch0:
 ################################################################################
 # FIXME
 
-  # If $t0 is not less than $t1, break from the loop
-  bge $t0, $t1, binarySearch1
-
-  # Calculate midpoint index k
-  add $t2, $t0, $t1
-  srl $t2, $t2, 1  # $t2 = ($t0 + $t1) / 2
-
-  # Calculate address of array[k]
-  sll $t3, $t2, 2  # $t3 = $t2 * 4 (convert index to byte offset)
-  add $t3, $s1, $t3  # $t3 = base address + byte offset
-
-  # Load the element at array[k]
-  lw $t4, 0($t3)
-
-  # Compare array[k] with M
-  blt $t4, $s2, less_than_M  # If array[k] < M, adjust $t0
-  bgt $t4, $s2, greater_than_M  # If array[k] > M, adjust $t1
-  # If array[k] == M, set $v0 to index k and break
-  li $v0, $t2
-  j binarySearch1
-
-  less_than_M:
-  addi $t0, $t2, 1  # Increase $t0 to k + 1
-  j binarySearch0  # Continue loop
-
-  greater_than_M:
-  move $t1, $t2  # Decrease $t1 to k
-  j binarySearch0  # Continue loop
-
+  nop
 
 # FIXME
 ################################################################################
