@@ -88,7 +88,6 @@ equal:
 compareContents:
   sub $s0, $s0, $t0
   sub $s1, $s1, $t0
-  li $t0, 0
 
 contentCompareLoop:
   lb $t1, 0($s0)      # 1st string의 1 Byte
@@ -100,7 +99,6 @@ contentCompareLoop:
   # $t1 == $t2
   addi $s0, $s0, 1
   addi $s1, $s1, 1
-  addi $t0, $t0, 1
 
   j contentCompareLoop
 
