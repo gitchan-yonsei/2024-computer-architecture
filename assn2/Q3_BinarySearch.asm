@@ -122,11 +122,6 @@ binarySearch0:
   syscall
   li $v0, 1
   move $a0, $t1
-  # print t2
-  syscall
-  li $v0, 1
-  move $a0, $t2
-  #
   syscall
   li $v0, 4
   la $a0, newline
@@ -141,6 +136,13 @@ binarySearch0:
   # Calculate middle index k
   addu $t2, $t0, $t1   # $t2 = $t0 + $t1
   srl $t2, $t2, 1      # $t2 = ($t0 + $t1) / 2, shift right by 1 divides by 2
+
+  # print t2
+  li $v0, 1
+  move $a0, $t2
+  syscall
+  #
+
   lw $t3, 0($s1)       # Load base address of the array
   sll $t4, $t2, 2      # $t4 = $t2 * 4, as each integer is 4 bytes
   add $t3, $t3, $t4    # $t3 = address of array[k]
