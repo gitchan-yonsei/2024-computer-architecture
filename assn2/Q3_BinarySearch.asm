@@ -142,7 +142,7 @@ binarySearch0:
   ## 여기 위까지 OK
 
   blt $s2, $t3, updateT1
-  blt $t3, $s2, updateT2
+  blt $t3, $s2, updateT0
   beq $t3, $s2, foundTarget
 
   updateT1:
