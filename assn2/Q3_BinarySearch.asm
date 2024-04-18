@@ -122,6 +122,11 @@ binarySearch0:
   syscall
   li $v0, 1
   move $a0, $t1
+  # print t2
+  syscall
+  li $v0, 1
+  move $a0, $t2
+  #
   syscall
   li $v0, 4
   la $a0, newline
@@ -151,7 +156,7 @@ binarySearch0:
     j binarySearch0        # Continue at the start of the loop
 
   update_t0:
-    addiu $t0, $t2, 1      # Move $t0 to middle index + 1
+    addi $t0, $t2, 1      # Move $t0 to middle index + 1
     j binarySearch0        # Continue at the start of the loop
 
   found_match:
