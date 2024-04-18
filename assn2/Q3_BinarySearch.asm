@@ -130,27 +130,37 @@ binarySearch0:
   # $v0 = $s3
   move $v0, $s3
 
-################################################################################
-# FIXME
-  bge $t0, $t1, binarySearch1     # Exit loop if $t0 exceeds $t1
-  add $t2, $t0, $t1                # Calculate midpoint: ($t0 + $t1)
-  srl $t2, $t2, 1                  # Divide by 2 (shift right)
-  sll $t3, $t2, 2                  # Multiply by 4 to get byte offset
-  add $t3, $s1, $t3                # Add offset to base address of array
-  lw $t4, 0($t3)                   # Load the value at the midpoint
-  beq $t4, $s2, found              # If midpoint value equals target, exit loop
-  bgt $t4, $s2, greater            # If midpoint value > target, search left half
-  addi $t0, $t2, 1                 # Update lower bound to search right half
-  j binarySearch0                  # Jump back to loop start
-greater:
-  addi $t1, $t2, -1                # Update upper bound to search left half
-  j binarySearch0                  # Jump back to loop start
-found:
-  move $v0, $t2                    # Store the index of the found element in $v0
-  j binarySearch1                  # Exit loop
+  # Calculate midpoint
+  addu $t3, $t0, $t1   # $t3 = $t0 + $t1
+  srl $t3, $t3, 1       # $t3 = ($t0 + $t1) / 2 (right shift by 1 for division by 2)
 
-# FIXME
-################################################################################
+  # Load the middle element of the array
+  sll $t4, $t3, 2       # $t4 = $t3 * 4 (index to offset conversion)
+  addu $t4, $t4, $s1    # $t4 = base address + offset
+  lw $t5, 0($t4)        # Load the value at calculated address into $t5
+
+  # Compare the middle element with the search key $s2
+  sltu $t6, $t5, $s2    # Set $t6 to 1 if $t5 < $s2 else 0
+  sltu $t7, $s2, $t5    # Set $t7 to 1 if $s2 < $t5 else 0
+
+  beq $t6, $zero, check_greater  # Go to check_greater if $t5 >= $s2
+increase_t0:
+  addiu $t0, $t3, 1     # $t0 = $t3 + 1
+  j continue_search     # Jump to continue_search
+
+check_greater:
+  beq $t7, $zero, found_match  # Go to found_match if $t5 == $s2
+  move $t1, $t3         # $t1 = $t3
+  j continue_search     # Jump to continue_search
+
+found_match:
+  move $v0, $t3         # Found the match, store the index in $v0
+  j exit_search         # Exit loop
+
+continue_search:
+  j binarySearch0       # Repeat the loop
+
+exit_search:
 
 binarySearch1:
 
