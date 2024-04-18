@@ -139,6 +139,24 @@ binarySearch0:
   add $t3, $s1, $t2      # $t3 = array base address + byte offset
   lw $t3, 0($t3)         # Load the value at the calculated address into $t3
 
+  ## 여기 위까지 OK
+
+  blt $s2, $t3, updateT1
+  blt $t3, $s2, updateT2
+  beq $t3, $s2, foundTarget
+
+  updateT1:
+    move $t1, $t2
+    j binarySearch0
+
+  updateT0:
+    addiu $t0, $t2, 1
+    j binarySearch0
+
+  foundTarget:
+    move $v0, $t2
+    j binarySearch1
+
 # FIXME
 ################################################################################
 
