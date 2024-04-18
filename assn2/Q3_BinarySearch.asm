@@ -133,15 +133,31 @@ binarySearch0:
 ################################################################################
 # FIXME
 
-  # k 계산
+  # k 계산 -> $t2
   bge $t0, $t1, binarySearch1   # if ($t0 >= $t1) { break; }
   add $t2, $t0, $t1             # k = $t0 + $t1
   srl $t2, $t2, 1               # k = k / 2
 
-  # array[k] 가져오기
+  # array[k] 가져오기 -> $t3
   sll $t3, $t2, 2               # $t3 -> offset * 4(int는 4B) (물리 주소 상 실제 offset)
   add $t3, $t3, $s1             # array[k]의 주소 = offset + base
   lw $t3, 0($t3)                # $t3 = array[k]의 값
+
+  blt $t3, $s2, changeT0        # if (array[k] < M)
+  bgt $t3, $s2, changeT1        # else if (array[k] > M)
+  beq $t3, $s2, exit            # else (즉, array[k] == M)
+
+  changeT0:
+    addi $t0, $t2, 1            # $t0 = k + 1;
+    j binarySearch0             # for loop를 다시 돌러 감
+
+  changeT1:
+    move $t1, $t2               # t1 = k
+    j binarySearch0             # for loop를 다시 돌러 감
+
+  exit:
+    move $v0, $t2
+    j binarySearch1
 
 # FIXME
 ################################################################################
