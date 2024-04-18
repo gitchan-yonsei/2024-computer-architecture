@@ -141,7 +141,11 @@ recursiveInsertionSort:
 
   exitSortLoop:
     # array[N - j + 1] = x;
-    sw $t0, 0($t6)
+    sub $t2, $s0, $t1            # $t2 = N - j
+    addi $t2, $t2, 1             # $t2 = N - j + 1
+    sll $t2, $t2, 2              # Byte offset
+    add $t2, $s1, $t2            # $t2 = array[N - j + 1]의 주소
+    sw $t0, 0($t2)               # array[N - j + 1] = x;
 
   exit:
     j recursiveInsertionSort_exit
