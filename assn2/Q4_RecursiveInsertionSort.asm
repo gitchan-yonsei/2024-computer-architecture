@@ -102,7 +102,14 @@ recursiveInsertionSort:
 ################################################################################
 # FIXME
 
-  nop
+  ble $s0, $zero, exit          # if (N <= 0) exit
+
+  addi, $a0, $s0, -1
+  move $a1, $s1
+  jal recursiveInsertionSort
+
+  exit:
+    j recursiveInsertionSort_exit
 
 # FIXME
 ################################################################################
