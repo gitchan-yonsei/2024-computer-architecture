@@ -121,7 +121,7 @@ recursiveInsertionSort:
 
     # while 조건 검사
     # j <= N
-    slt $t2, $t1, $s0           # j <= N -> $t2 = 1
+    sle $t2, $t1, $s0           # j <= N -> $t2 = 1
     beq $t2, $zero, exitSortLoop
 
     # array[N - j] > x
