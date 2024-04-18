@@ -141,21 +141,21 @@ binarySearch0:
 
   ## 여기 위까지 OK
 
-  blt $s2, $t3, updateT1
-  blt $t3, $s2, updateT0
-  beq $t3, $s2, foundTarget
+  bgt $t3, $s2, update_t1  # if array[k] > M, then update $t1
+  blt $t3, $s2, update_t0  # if array[k] < M, then update $t0
+  beq $t3, $s2, found_match # if array[k] == M, we found it
 
-  updateT1:
-    move $t1, $t2
-    j binarySearch0
+  update_t1:
+    move $t1, $t2          # Move $t1 to middle index $t2
+    j binarySearch0        # Continue at the start of the loop
 
-  updateT0:
-    addiu $t0, $t2, 1
-    j binarySearch0
+  update_t0:
+    addiu $t0, $t2, 1      # Move $t0 to middle index + 1
+    j binarySearch0        # Continue at the start of the loop
 
-  foundTarget:
-    move $v0, $t2
-    j binarySearch1
+  found_match:
+    move $v0, $t2          # Store the found index in $v0
+    j binarySearch1        # Exit the loop and prepare to return
 
 # FIXME
 ################################################################################
