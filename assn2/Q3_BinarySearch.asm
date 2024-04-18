@@ -133,7 +133,30 @@ binarySearch0:
 ################################################################################
 # FIXME
 
-  nop
+  # Calculate middle index k
+  addu $t2, $t0, $t1   # $t2 = $t0 + $t1
+  srl $t2, $t2, 1      # $t2 = ($t0 + $t1) / 2, shift right by 1 divides by 2
+  lw $t3, 0($s1)       # Load base address of the array
+  sll $t4, $t2, 2      # $t4 = $t2 * 4, as each integer is 4 bytes
+  add $t3, $t3, $t4    # $t3 = address of array[k]
+  lw $t3, 0($t3)       # $t3 = array[k]
+
+  # Compare array[k] with M
+  bgt $t3, $s2, update_t1  # if array[k] > M, then update $t1
+  blt $t3, $s2, update_t0  # if array[k] < M, then update $t0
+  beq $t3, $s2, found_match # if array[k] == M, we found it
+
+  update_t1:
+    move $t1, $t2          # Move $t1 to middle index $t2
+    j binarySearch0        # Continue at the start of the loop
+
+  update_t0:
+    addiu $t0, $t2, 1      # Move $t0 to middle index + 1
+    j binarySearch0        # Continue at the start of the loop
+
+  found_match:
+    move $v0, $t2          # Store the found index in $v0
+    j binarySearch1        # Exit the loop and prepare to return
 
 # FIXME
 ################################################################################
