@@ -54,7 +54,7 @@ compareStrings:
   move $t4, $zero       # 2nd string 길이
 
 
-loop:
+lengthCompareLoop:
   # Load byte from each string
   lb $t1, 0($a0)  # Load byte from address in $a0
   lb $t2, 0($a1)  # Load byte from address in $a1
@@ -62,34 +62,22 @@ loop:
   beq $t1, $zero, string1Ended
   beq $t2, $zero, first_string_greater
 
-    # Increment string pointers for next iteration
-    addi $a0, $a0, 1
-    addi $a1, $a1, 1
+  # Increment string pointers for next iteration
+  addi $a0, $a0, 1
+  addi $a1, $a1, 1
 
-    # Increment index register $t0
-    addi $t0, $t0, 1
+  # Increment index register $t0
+  addi $t0, $t0, 1
 
-      # Continue loop
-      j loop
+  # Continue loop
+  j lengthCompareLoop
 
- string1Ended:
-   bne $t2, $zero, second_string_greater
-   j sameLength
-
- sameLength:
-  move $t0, $zero
-  bne $t1, $t2, characters_differ
-  beq $t1, $zero, strings_equal
+string1Ended:
+  bne $t2, $zero, second_string_greater
+  j sameLength
 
 first_string_greater:
   li $v0, 1
-  j end_compare
-
-characters_differ:
-  # Determine which string is greater
-  slt $t3, $t1, $t2  # If $t1 < $t2, $t3 = 1
-  bne $t3, $zero, second_string_greater
-  li $v0, 1           # $v0 = 1 if first string is greater
   j end_compare
 
 second_string_greater:
@@ -98,6 +86,27 @@ second_string_greater:
 
 strings_equal:
   li $v0, 0           # Strings are equal
+  j end_compare
+
+sameLength:
+  sub $a0, $a0, $t0
+  sub $a1, $a1, $t0
+  move $t0, $zero
+
+contentCompareLoop:
+  bne $t1, $t2, characters_differ
+  beq $t1, $zero, strings_equal
+
+  addi $a0, $a0, 1
+  addi $a1, $a1, 1
+  addi $t0, $t0, 1
+
+  j contentCompareLoop
+
+characters_differ:
+  slt $t3, $t1, $t2  # If $t1 < $t2, $t3 = 1
+  bne $t3, $zero, second_string_greater
+  li $v0, 1           # $v0 = 1 if first string is greater
   j end_compare
 
 end_compare:
