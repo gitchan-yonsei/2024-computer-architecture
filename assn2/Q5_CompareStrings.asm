@@ -48,7 +48,43 @@ compareStrings:
 ################################################################################
 # FIXME
 
-  nop
+  # Set index register $t0 to 0 (loop index)
+  move $t0, $zero
+
+loop:
+  # Load byte from each string
+  lb $t1, 0($a0)  # Load byte from address in $a0
+  lb $t2, 0($a1)  # Load byte from address in $a1
+
+  # Compare characters
+  bne $t1, $t2, characters_differ
+  beq $t1, $zero, strings_equal  # If $t1 (also $t2, since they are equal here) is zero, end loop as strings are equal
+
+  # Increment string pointers for next iteration
+  addi $a0, $a0, 1
+  addi $a1, $a1, 1
+
+  # Increment index register $t0
+  addi $t0, $t0, 1
+
+  # Continue loop
+  j loop
+
+characters_differ:
+  # Determine which string is greater
+  slt $t3, $t1, $t2  # If $t1 < $t2, $t3 = 1
+  bne $t3, $zero, second_string_greater
+  li $v0, 1           # $v0 = 1 if first string is greater
+  j end_compare
+
+second_string_greater:
+  li $v0, -1          # $v0 = -1 if second string is greater
+  j end_compare
+
+strings_equal:
+  li $v0, 0           # Strings are equal
+
+end_compare:
 
 # FIXME
 ################################################################################
