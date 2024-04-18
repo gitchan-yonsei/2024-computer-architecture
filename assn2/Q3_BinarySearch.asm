@@ -133,12 +133,11 @@ binarySearch0:
 ################################################################################
 # FIXME
 
-  add $t2, $t0, $t1
-  srl $t2, $t2, 1
-  lw $t3, 0($s1)
-  sll $t4, $t2, 2
-  addu $t3, $t3, $t4
-  lw $t3, 0($t3)
+  add $t2, $t0, $t1      # $t2 = $t0 + $t1
+  srl $t2, $t2, 1        # $t2 = ($t0 + $t1) / 2
+  sll $t2, $t2, 2        # $t2 = $t2 * 4, Convert index to byte offset for word-aligned access
+  add $t3, $s1, $t2      # $t3 = array base address + byte offset
+  lw $t3, 0($t3)         # Load the value at the calculated address into $t3
 
 # FIXME
 ################################################################################
