@@ -108,6 +108,12 @@ recursiveInsertionSort:
   move $a1, $s1
   jal recursiveInsertionSort
 
+  # int x = array[N - 1] -> $t0
+  addi $t0, $s0, -1
+  sll $t0, $t0, 2               # $t0 = 4 * (N - 1) -> offset
+  add $t1, $s1, $t0             # $t1 = base + offset -> memory address of array[N - 1]
+  lw $t0, 0($t1)                # $t0 = array[N - 1]
+
   exit:
     j recursiveInsertionSort_exit
 
