@@ -133,29 +133,35 @@ binarySearch0:
 ################################################################################
 # FIXME
 
-  add $t2, $t0, $t1      # $t2 = $t0 + $t1
-  srl $t2, $t2, 1        # $t2 = ($t0 + $t1) / 2
-  sll $t2, $t2, 2        # $t2 = $t2 * 4, Convert index to byte offset for word-aligned access
-  add $t3, $s1, $t2      # $t3 = array base address + byte offset
-  lw $t3, 0($t3)         # Load the value at the calculated address into $t3
+  # If $t0 is not less than $t1, break from the loop
+  bge $t0, $t1, binarySearch1
 
-  ## 여기 위까지 OK
+  # Calculate midpoint index k
+  add $t2, $t0, $t1
+  srl $t2, $t2, 1  # $t2 = ($t0 + $t1) / 2
 
-  bgt $t3, $s2, update_t1  # if array[k] > M, then update $t1
-  blt $t3, $s2, update_t0  # if array[k] < M, then update $t0
-  beq $t3, $s2, found_match # if array[k] == M, we found it
+  # Calculate address of array[k]
+  sll $t3, $t2, 2  # $t3 = $t2 * 4 (convert index to byte offset)
+  add $t3, $s1, $t3  # $t3 = base address + byte offset
 
-  update_t1:
-    move $t1, $t2          # Move $t1 to middle index $t2
-    j binarySearch0        # Continue at the start of the loop
+  # Load the element at array[k]
+  lw $t4, 0($t3)
 
-  update_t0:
-    addiu $t0, $t2, 1      # Move $t0 to middle index + 1
-    j binarySearch0        # Continue at the start of the loop
+  # Compare array[k] with M
+  blt $t4, $s2, less_than_M  # If array[k] < M, adjust $t0
+  bgt $t4, $s2, greater_than_M  # If array[k] > M, adjust $t1
+  # If array[k] == M, set $v0 to index k and break
+  li $v0, $t2
+  j binarySearch1
 
-  found_match:
-    move $v0, $t2          # Store the found index in $v0
-    j binarySearch1        # Exit the loop and prepare to return
+  less_than_M:
+  addi $t0, $t2, 1  # Increase $t0 to k + 1
+  j binarySearch0  # Continue loop
+
+  greater_than_M:
+  move $t1, $t2  # Decrease $t1 to k
+  j binarySearch0  # Continue loop
+
 
 # FIXME
 ################################################################################
