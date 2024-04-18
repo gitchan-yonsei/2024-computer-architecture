@@ -45,9 +45,6 @@ compareStrings:
   addi $sp, $sp, -4
   sw $ra, 0($sp)
 
-################################################################################
-# FIXME
-
   move $s0, $a0         # 1st string 시작 주소 -> $s0
   move $s1, $a1         # 2nd string 시작 주소 -> $s1
 
@@ -108,9 +105,6 @@ differentCharacter:
   j string2Greater
 
 exit:
-# FIXME
-################################################################################
-
   # $ra <-- stack
   lw $ra, 0($sp)
   addi $sp, $sp, 4

@@ -99,10 +99,7 @@ recursiveInsertionSort:
   move $a1, $s1
   jal printArray
 
-################################################################################
-# FIXME
-
-  ble $s0, $zero, exit          # if (N <= 0) exit
+  ble $s0, $zero, recursiveInsertionSort_exit          # if (N <= 0) exit
 
   addi $a0, $s0, -1
   move $a1, $s1
@@ -146,12 +143,7 @@ recursiveInsertionSort:
     sll $t2, $t2, 2              # Byte offset
     add $t2, $s1, $t2            # $t2 = array[N - j + 1]의 주소
     sw $t0, 0($t2)               # array[N - j + 1] = x;
-
-  exit:
     j recursiveInsertionSort_exit
-
-# FIXME
-################################################################################
 
 recursiveInsertionSort_exit:
 
