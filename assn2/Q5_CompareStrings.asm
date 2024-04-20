@@ -45,14 +45,66 @@ compareStrings:
   addi $sp, $sp, -4
   sw $ra, 0($sp)
 
-################################################################################
-# FIXME
+  move $s0, $a0         # 1st string 시작 주소 -> $s0
+  move $s1, $a1         # 2nd string 시작 주소 -> $s1
 
-  nop
+  li $t0, 0             # 현재 string index
 
-# FIXME
-################################################################################
+lengthCompareLoop:
+  lb $t1, 0($s0)      # 1st string의 1 Byte
+  lb $t2, 0($s1)      # 2nd string의 1 Byte
 
+  # if (string1[t] == 0)
+  beq $t1, $zero, string1Ended
+
+  # if (string1[t] != 0)
+  beq $t2, $zero, string1Greater
+
+  # if (string1[t] != 0 && string2[t] != 0)
+  addi $t0, $t0, 1
+  addi $s0, $s0, 1
+  addi $s1, $s1, 1
+  j lengthCompareLoop
+
+string1Ended:
+  bne $t2, $zero, string2Greater
+  j compareContents
+
+string1Greater:
+  li $v0, 1
+  j exit
+
+string2Greater:
+  li $v0, -1
+  j exit
+
+equal:
+  li $v0, 0
+  j exit
+
+compareContents:
+  sub $s0, $s0, $t0
+  sub $s1, $s1, $t0
+
+contentCompareLoop:
+  lb $t1, 0($s0)      # 1st string의 1 Byte
+  lb $t2, 0($s1)      # 2nd string의 1 Byte
+
+  bne $t1, $t2, differentCharacter
+  beq $t1, $zero, equal
+
+  # $t1 == $t2
+  addi $s0, $s0, 1
+  addi $s1, $s1, 1
+
+  j contentCompareLoop
+
+differentCharacter:
+  sgt $t3, $t1, $t2   # If $t1 > $t2, $t3 = 1
+  beq $t3, 1, string1Greater
+  j string2Greater
+
+exit:
   # $ra <-- stack
   lw $ra, 0($sp)
   addi $sp, $sp, 4

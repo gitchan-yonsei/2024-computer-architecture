@@ -16,17 +16,23 @@ str2:
 # $a1: a 32-bit unsigned integer
 # $v0: the greatest common divisor of $a0 and $a1
 calculateGCD:
+    move $t0, $a0
+    move $t1, $a1
 
-################################################################################
-# FIXME
+loop:
+    beq $t1, $zero, exit
 
-  nop
+    div $t0, $t1
+    mfhi $t2
 
-# FIXME
-################################################################################
+    move $t0, $t1
+    move $t1, $t2
 
-  # return
-  jr $ra
+    j loop
+
+exit:
+    move $v0, $t0
+    jr $ra
 
 .globl main
 main:
