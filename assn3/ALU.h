@@ -54,7 +54,7 @@ class ALU : public DigitalCircuit {
           output = ~(input0 | input1);
           break;
         default:
-          assert(false && "유효하지 않은 ALU Control입니다.");
+          assert(false && "지원하지 않는 ALU Control입니다.");
       }
 
       // Set the output value
