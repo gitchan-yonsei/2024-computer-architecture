@@ -22,8 +22,11 @@ class ALU : public DigitalCircuit {
     }
 
     virtual void advanceCycle() {
+        // INPUT
         // input0: ALU의 첫 번째 32비트 입력값
         // input1: ALU의 두 번째 32비트 입력값
+
+        // OUTPUT
         // output: ALU의 32비트 출력값
         // zero: ALU의 zero flag -> output이 0이면 1로 설정됨
 
