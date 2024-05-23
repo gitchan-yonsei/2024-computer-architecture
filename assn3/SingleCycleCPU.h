@@ -58,7 +58,28 @@ class SingleCycleCPU : public DigitalCircuit {
 
       _PC = initialPC;
 
-      /* FIXME: setup various sequential/combinational circuits and wires as needed */
+      // Instructions Memory
+      _instMemory = new Memory("InstructionMemory", &_PC, nullptr, &_alwaysHi, &_alwaysLo, &_instMemInstruction, Memory::LittleEndian);
+      // Register File
+      _registerFile = new RegisterFile(&_regFileReadRegister1, &_regFileReadRegister2, &_muxRegFileWriteRegisterOutput, &_regFileWriteData, &_ctrlRegWrite, &_regFileReadData1, &_regFileReadData2, regFileName);
+      // Data Memory
+      _dataMemory = new Memory("DataMemory", &_aluResult, &_regFileReadData2, &_ctrlMemRead, &_ctrlMemWrite, &_dataMemReadData, Memory::LittleEndian);
+
+      // Control
+      _control = new Control(&_ctrlOpcode, &_ctrlRegDst, &_ctrlALUSrc, &_ctrlMemToReg, &_ctrlRegWrite, &_ctrlMemRead, &_ctrlMemWrite, &_ctrlBranch, &_ctrlALUOp);
+      // ALU Control
+      _aluControl = new ALUControl(&_ctrlALUOp, &_aluCtrlFunct, &_aluCtrlOp);
+      // ALU
+      _alu = new ALU(&_aluCtrlOp, &_regFileReadData1, &_muxALUInput1Output, &_aluResult, &_aluZero);
+
+      // MUX for Register File
+      _muxRegFileWriteRegister = new MUX<5>("MUX_RegFileWriteRegister", &_muxRegFileWriteRegisterInput0, &_muxRegFileWriteRegisterInput1, &_ctrlRegDst, &_muxRegFileWriteRegisterOutput);
+      // Mux for ALU Input 1
+      _muxALUInput1 = new MUX<32>("MUX_ALUInput1", &_regFileReadData2, &_signExtendOutput, &_ctrlALUSrc, &_muxALUInput1Output);
+      // Mux for Register File Write Data
+      _muxRegFileWriteData = new MUX<32>("MUX_RegFileWriteData", &_aluResult, &_dataMemReadData, &_ctrlMemToReg, &_regFileWriteData);
+      // Mux for PC
+      _muxPC = new MUX<32>("MUX_PC", &_muxPCInput0, &_muxPCInput1, &_muxPCSelect, &_PC);
     }
 
     void printPVS() {
@@ -75,7 +96,38 @@ class SingleCycleCPU : public DigitalCircuit {
     virtual void advanceCycle() {
       _currCycle += 1;
 
-      /* FIXME: implement the single-cycle behavior of the single-cycle MIPS CPU */
+      // IF (Instruction Fetch)
+      _instMemory->advanceCycle();
+      _ctrlOpcode = _instMemInstruction.to_ulong() >> 26; // 명령어 상위 6비트 추출
+      _control->advanceCycle();
+
+      // ID (Instruction Decode)
+      _regFileReadRegister1 = (_instMemInstruction.to_ulong() >> 21) & 0x1F;
+      _regFileReadRegister2 = (_instMemInstruction.to_ulong() >> 16) & 0x1F;
+      _muxRegFileWriteRegisterInput0 = _regFileReadRegister2;
+      _muxRegFileWriteRegisterInput1 = (_instMemInstruction.to_ulong() >> 11) & 0x1F;
+      _registerFile->advanceCycle();
+
+      // EXE (Execute)
+      _aluCtrlFunct = _instMemInstruction.to_ulong() & 0x3F;
+      _aluControl->advanceCycle();
+      _signExtendInput = _instMemInstruction.to_ulong() & 0xFFFF;
+      _signExtendOutput = (_signExtendInput.test(15) ? 0xFFFF0000 : 0x00000000) | _signExtendInput.to_ulong();
+      _muxALUInput1->advanceCycle();
+      _alu->advanceCycle();
+
+      // MEM (Memory Access)
+      _dataMemory->advanceCycle();
+
+      // WB (Write Back)
+      _muxRegFileWriteData->advanceCycle();
+      _muxRegFileWriteRegister->advanceCycle();
+
+      // Update PC (Program Counter)
+      _muxPCInput0 = _PC.to_ulong() + 4;
+      _muxPCInput1 = (_signExtendOutput.to_ulong() << 2) + _muxPCInput0.to_ulong();
+      _muxPCSelect = _ctrlBranch & _aluZero;
+      _muxPC->advanceCycle();
     }
 
     ~SingleCycleCPU() {
