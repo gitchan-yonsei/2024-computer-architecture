@@ -128,6 +128,37 @@ class SingleCycleCPU : public DigitalCircuit {
       _muxPCInput1 = (_signExtendOutput.to_ulong() << 2) + _muxPCInput0.to_ulong();
       _muxPCSelect = _ctrlBranch & _aluZero;
       _muxPC->advanceCycle();
+
+      // reset all wires
+      _instMemInstruction.reset();
+      _ctrlOpcode.reset();
+      _ctrlRegDst.reset();
+      _ctrlALUSrc.reset();
+      _ctrlMemToReg.reset();
+      _ctrlRegWrite.reset();
+      _ctrlMemRead.reset();
+      _ctrlMemWrite.reset();
+      _ctrlBranch.reset();
+      _ctrlALUOp.reset();
+      _muxRegFileWriteRegisterInput0.reset();
+      _muxRegFileWriteRegisterInput1.reset();
+      _muxRegFileWriteRegisterOutput.reset();
+      _regFileReadRegister1.reset();
+      _regFileReadRegister2.reset();
+      _regFileWriteData.reset();
+      _regFileReadData1.reset();
+      _regFileReadData2.reset();
+      _signExtendInput.reset();
+      _signExtendOutput.reset();
+      _muxALUInput1Output.reset();
+      _aluCtrlFunct.reset();
+      _aluCtrlOp.reset();
+      _aluResult.reset();
+      _aluZero.reset();
+      _dataMemReadData.reset();
+      _muxPCInput0.reset();
+      _muxPCInput1.reset();
+      _muxPCSelect.reset();
     }
 
     ~SingleCycleCPU() {
