@@ -20,7 +20,7 @@ void testALU() {
   alu->advanceCycle();
   printWire("output", output); printWire("zero", zero);
 
-  fprintf(stderr, "INFO: 0x03478bcf AND 0x12569ade --> output = 0x12569ade, zero = 0x0\n");
+  fprintf(stderr, "INFO: 0x03478bcf AND 0x12569ade --> output = 0x02468ace, zero = 0x0\n");
   input1 = 0x12569ade;
   aluControl = 0x0;
   printWire("input0", input0); printWire("input1", input1); printWire("aluControl", aluControl);
