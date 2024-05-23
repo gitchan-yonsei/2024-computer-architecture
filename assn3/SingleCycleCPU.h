@@ -26,7 +26,11 @@ class MUX : public DigitalCircuit {
     }
 
     virtual void advanceCycle() {
-      /* FIXME */
+        if(_iSelect->test(0)) {
+            *_oOutput = *_iInput1;
+            return;
+        }
+        *_oOutput = *_iInput0;
     }
 
   private:
