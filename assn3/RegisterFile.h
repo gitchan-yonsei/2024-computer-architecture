@@ -57,7 +57,21 @@ class RegisterFile : public DigitalCircuit {
     }
 
     virtual void advanceCycle() {
-      /* FIXME */
+        // READ REGISTERS (RegWrite = 0)
+        // ReadRegister1, ReadRegister2: 값을 읽을 레지스터의 인덱스 -> ReadData1, ReadData2로 읽은 값 반환
+        uint32_t readRegister1 = static_cast<uint32_t>(_iReadRegister1->to_ulong());
+        uint32_t readRegister2 = static_cast<uint32_t>(_iReadRegister2->to_ulong());
+        *_oReadData1 = _registers[readRegister1].to_ulong();
+        *_oReadData2 = _registers[readRegister2].to_ulong();
+
+        // WRITE REGISTERS (RegWrite = 1)
+        // WriteRegister: 값을 쓸 레지스터의 인덱스 -> WriteData로 쓸 값을 전달받음.
+        if (_iRegWrite->test(0)) {
+            uint32_t writeRegister = static_cast<uint32_t>(_iWriteRegister->to_ulong());
+            if (writeRegister != 0) { // $0 레지스터에는 값을 쓸 수 없음
+                _registers[writeRegister] = _iWriteData->to_ulong();
+            }
+        }
     }
 
   private:
