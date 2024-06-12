@@ -4,61 +4,113 @@
 #include "DigitalCircuit.h"
 
 #include <cassert>
+#include <iostream>
 
-class ALUControl : public DigitalCircuit {
+class ALUControl : public DigitalCircuit
+{
 
-  public:
+public:
+  ALUControl(const Wire<2> *iALUOp,
+             const Wire<6> *iFunct,
+             Wire<4> *oOperation) : DigitalCircuit("ALUControl")
+  {
+    _iALUOp = iALUOp;
+    _iFunct = iFunct;
+    _oOperation = oOperation;
+  }
 
-    ALUControl(const Wire<2> *iALUOp,
-               const Wire<6> *iFunct,
-               Wire<4> *oOperation) : DigitalCircuit("ALUControl") {
-      _iALUOp = iALUOp;
-      _iFunct = iFunct;
-      _oOperation = oOperation;
+  virtual void advanceCycle()
+  {
+    _oOperation->reset();
+    // Two bit iALUOp signal
+    // Six bit Funct field
+    // Output: four bit operation signal oOperation
+    if (_iALUOp->test(1) == false && _iALUOp->test(0) == false)
+    {
+      // 0010: ADD
+      _oOperation->set(3, false);
+      _oOperation->set(2, false);
+      _oOperation->set(1, true);
+      _oOperation->set(0, false);
+      return;
     }
-
-    virtual void advanceCycle() {
-    uint32_t aluOp = static_cast<uint32_t>(_iALUOp->to_ulong());
-    uint32_t funct = static_cast<uint32_t>(_iFunct->to_ulong());
-    uint32_t operation = 0;
-
-    if (aluOp == 0b00) {
-        operation = 0b0010;
-    } else if (aluOp == 0b01 || aluOp == 0b11) {
-        operation = 0b0110;
-    } else if (aluOp == 0b10 || aluOp == 0b11) {
-        uint32_t func_low_4 = funct & 0b1111;
-        switch (func_low_4) {
-            case 0b0000:
-                operation = 0b0010;
-                break;
-            case 0b0010:
-                operation = 0b0110;
-                break;
-            case 0b0100:
-                operation = 0b0000;
-                break;
-            case 0b0101:
-                operation = 0b0001;
-                break;
-            case 0b1010:
-                operation = 0b0111;
-                break;
-        }
-    } else {
-        assert(false && "지원하지 않는 ALUOp 또는 funct 필드입니다.");
+    else if (_iALUOp->test(1) == true)
+    {
+      // funct field 3, 2, 1, 0 are zero --> 0010: ADD
+      if (_iFunct->test(3) == false &&
+          _iFunct->test(2) == false &&
+          _iFunct->test(1) == false &&
+          _iFunct->test(0) == false)
+      {
+        _oOperation->set(3, false);
+        _oOperation->set(2, false);
+        _oOperation->set(1, true);
+        _oOperation->set(0, false);
+        return;
+      }
+      // funct field XX0010 --> 0110: SUB
+      else if (_iFunct->test(3) == false &&
+               _iFunct->test(2) == false &&
+               _iFunct->test(1) == true &&
+               _iFunct->test(0) == false)
+      {
+        _oOperation->set(3, false);
+        _oOperation->set(2, true);
+        _oOperation->set(1, true);
+        _oOperation->set(0, false);
+        return;
+      }
+      // funct field XX0100 --> 0000: AND
+      else if (_iFunct->test(3) == false &&
+               _iFunct->test(2) == true &&
+               _iFunct->test(1) == false &&
+               _iFunct->test(0) == false)
+      {
+        _oOperation->set(3, false);
+        _oOperation->set(2, false);
+        _oOperation->set(1, false);
+        _oOperation->set(0, false);
+        return;
+      }
+      // funct field XX0101 --> 0001: OR
+      else if (_iFunct->test(3) == false &&
+               _iFunct->test(2) == true &&
+               _iFunct->test(1) == false &&
+               _iFunct->test(0) == true)
+      {
+        _oOperation->set(3, false);
+        _oOperation->set(2, false);
+        _oOperation->set(1, false);
+        _oOperation->set(0, true);
+        return;
+      }
+      // funct field XX1010 --> 0111: SLT
+      else if (_iFunct->test(3) == true &&
+               _iFunct->test(2) == false &&
+               _iFunct->test(1) == true &&
+               _iFunct->test(0) == false)
+      {
+        _oOperation->set(3, false);
+        _oOperation->set(2, true);
+        _oOperation->set(1, true);
+        _oOperation->set(0, true);
+        return;
+      }
     }
+    else if (_iALUOp->test(0) == true)
+    {
+      // 0110: SUB
+      _oOperation->set(3, false);
+      _oOperation->set(2, true);
+      _oOperation->set(1, true);
+      _oOperation->set(0, false);
+    }
+  }
 
-    *_oOperation = std::bitset<4>(operation);
-}
-
-  private:
-
-    const Wire<2> *_iALUOp;
-    const Wire<6> *_iFunct;
-    Wire<4> *_oOperation;
-
+private:
+  const Wire<2> *_iALUOp;
+  const Wire<6> *_iFunct;
+  Wire<4> *_oOperation;
 };
 
 #endif
-

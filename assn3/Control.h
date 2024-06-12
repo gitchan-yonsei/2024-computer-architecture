@@ -3,137 +3,219 @@
 
 #include "DigitalCircuit.h"
 
-class Control : public DigitalCircuit {
+class Control : public DigitalCircuit
+{
 
-  public:
+public:
+  Control(const Wire<6> *iOpcode,
+          Wire<1> *oRegDst,
+          Wire<1> *oALUSrc,
+          Wire<1> *oMemToReg,
+          Wire<1> *oRegWrite,
+          Wire<1> *oMemRead,
+          Wire<1> *oMemWrite,
+          Wire<1> *oBranch,
+          Wire<2> *oALUOp) : DigitalCircuit("Control")
+  {
+    _iOpcode = iOpcode;
+    _oRegDst = oRegDst;
+    _oALUSrc = oALUSrc;
+    _oMemToReg = oMemToReg;
+    _oRegWrite = oRegWrite;
+    _oMemRead = oMemRead;
+    _oMemWrite = oMemWrite;
+    _oBranch = oBranch;
+    _oALUOp = oALUOp;
+  }
 
-    Control(const Wire<6> *iOpcode,
-            Wire<1> *oRegDst,
-            Wire<1> *oALUSrc,
-            Wire<1> *oMemToReg,
-            Wire<1> *oRegWrite,
-            Wire<1> *oMemRead,
-            Wire<1> *oMemWrite,
-            Wire<1> *oBranch,
-            Wire<2> *oALUOp) : DigitalCircuit("Control") {
-      _iOpcode = iOpcode;
-      _oRegDst = oRegDst;
-      _oALUSrc = oALUSrc;
-      _oMemToReg = oMemToReg;
-      _oRegWrite = oRegWrite;
-      _oMemRead = oMemRead;
-      _oMemWrite = oMemWrite;
-      _oBranch = oBranch;
-      _oALUOp = oALUOp;
+  virtual void advanceCycle()
+  {
+    _oRegDst->reset();
+    _oALUSrc->reset();
+    _oMemToReg->reset();
+    _oRegWrite->reset();
+    _oMemRead->reset();
+    _oMemWrite->reset();
+    _oBranch->reset();
+    _oALUOp->reset();
+
+    // std::cout << "iOpcode: " << _iOpcode->to_ulong() << std::endl;
+
+    // R-type
+    // add, sub, and, or, slt, nor
+    // iOpcode = 000000 (0x00)
+    if (_iOpcode->test(5) == false &&
+        _iOpcode->test(4) == false &&
+        _iOpcode->test(3) == false &&
+        _iOpcode->test(2) == false &&
+        _iOpcode->test(1) == false &&
+        _iOpcode->test(0) == false)
+    {
+      // std::cout << "R-type" << std::endl;
+      _oRegDst->set(0, true);
+      _oALUSrc->set(0, false);
+      _oMemToReg->set(0, false);
+      _oRegWrite->set(0, true);
+      _oMemRead->set(0, false);
+      _oMemWrite->set(0, false);
+      _oBranch->set(0, false);
+      _oALUOp->set(1, true);
+      _oALUOp->set(0, false);
     }
-
-    virtual void advanceCycle() {
-        // INPUT
-        // opcode: 6비트 연산 코드
-        uint32_t opcode = static_cast<uint32_t>(_iOpcode->to_ulong());
-
-        // OUTPUT
-        // RegDst: Destination Register가 $rt field에서 오는지 -> I-Type이면 0, R-Type이면 1
-        // ALUSrc: ALU의 두 번째 연산자가 immediate이면 1
-        // MemToReg: destination register에 쓰일 값이 ALU 결과면 0, 메모리로부터 읽어오면 1
-        // MemRead: 데이터 메모리부터 읽어오는 명령어(eg. lw)의 경우 1
-        // MemWrite: 데이터 메모리에 값을 쓰는 명령어(eg. sw)의 경우 1
-        // Branch: 분기가 있는 명령어의 경우 1
-        // ALUOp: ALU가 수행할 연산의 종류 지정 -> 00 (add), 01 (sub), 10 (R-Type 연산으로 funct 코드를 함께 보게 됨)
-
-        // 초기값 설정 (모두 0으로 설정)
-        *_oRegDst = 0;
-        *_oALUSrc = 0;
-        *_oMemToReg = 0;
-        *_oRegWrite = 0;
-        *_oMemRead = 0;
-        *_oMemWrite = 0;
-        *_oBranch = 0;
-        *_oALUOp = 0b00;
-
-        /*
-            [R-Type]
-            add: opcode: 000000, funct: 100000
-            sub: opcode: 000000, funct: 100010
-            and: opcode: 000000, funct: 100100
-            or: opcode: 000000, funct: 100101
-            nor: opcode: 000000, funct: 100111
-            slt: opcode: 000000, funct: 101010
-
-            [I-Type]
-            addi: opcode: 001000
-            lw: opcode: 100011
-            sw: opcode: 101011
-            beq: opcode: 000100
-        */
-
-       switch (opcode) {
-            case 0b000000: // R-Type (add, sub, and, or, nor, slt)
-                *_oRegDst = 1;
-                *_oALUSrc = 0;
-                *_oMemToReg = 0;
-                *_oRegWrite = 1;
-                *_oMemRead = 0;
-                *_oMemWrite = 0;
-                *_oBranch = 0;
-                *_oALUOp = 0b10;
-                break;
-            case 0b100011: // lw
-                *_oRegDst = 0;
-                *_oALUSrc = 1;
-                *_oMemToReg = 1;
-                *_oRegWrite = 1;
-                *_oMemRead = 1;
-                *_oMemWrite = 0;
-                *_oBranch = 0;
-                *_oALUOp = 0b00;
-                break;
-            case 0b101011: // sw
-                *_oRegDst = 0; // 상관없음
-                *_oALUSrc = 1;
-                *_oMemToReg = 0; // 상관없음
-                *_oRegWrite = 0;
-                *_oMemRead = 0;
-                *_oMemWrite = 1;
-                *_oBranch = 0;
-                *_oALUOp = 0b00;
-                break;
-            case 0b000100: // beq
-                *_oRegDst = 0; // 상관없음
-                *_oALUSrc = 0;
-                *_oMemToReg = 0; // 상관없음
-                *_oRegWrite = 0;
-                *_oMemRead = 0;
-                *_oMemWrite = 0;
-                *_oBranch = 1;
-                *_oALUOp = 0b01;
-                break;
-            case 0b001000: // addi
-                *_oRegDst = 0;
-                *_oALUSrc = 1;
-                *_oMemToReg = 0;
-                *_oRegWrite = 1;
-                *_oMemRead = 0;
-                *_oMemWrite = 0;
-                *_oBranch = 0;
-                *_oALUOp = 0b00;
-                break;
-        }
+    // lw
+    // iOpcode = 100011 (0x23)
+    else if (_iOpcode->test(5) == true &&
+             _iOpcode->test(4) == false &&
+             _iOpcode->test(3) == false &&
+             _iOpcode->test(2) == false &&
+             _iOpcode->test(1) == true &&
+             _iOpcode->test(0) == true)
+    {
+      // std::cout << "lw" << std::endl;
+      _oRegDst->set(0, false);
+      _oALUSrc->set(0, true);
+      _oMemToReg->set(0, true);
+      _oRegWrite->set(0, true);
+      _oMemRead->set(0, true);
+      _oMemWrite->set(0, false);
+      _oBranch->set(0, false);
+      _oALUOp->set(0, false);
+      _oALUOp->set(1, false);
     }
+    // sw
+    // iOpcode = 101011 (0x2B)
+    else if (_iOpcode->test(5) == true &&
+             _iOpcode->test(4) == false &&
+             _iOpcode->test(3) == true &&
+             _iOpcode->test(2) == false &&
+             _iOpcode->test(1) == true &&
+             _iOpcode->test(0) == true)
+    {
+      // std::cout << "sw" << std::endl;
+      _oRegDst->set(0, false);
+      _oALUSrc->set(0, true);
+      _oMemToReg->set(0, false);
+      _oRegWrite->set(0, false);
+      _oMemRead->set(0, false);
+      _oMemWrite->set(0, true);
+      _oBranch->set(0, false);
+      _oALUOp->set(0, false);
+      _oALUOp->set(1, false);
+    }
+    // beq
+    // iOpcode = 000100 (0x04)
+    else if (_iOpcode->test(5) == false &&
+             _iOpcode->test(4) == false &&
+             _iOpcode->test(3) == false &&
+             _iOpcode->test(2) == true &&
+             _iOpcode->test(1) == false &&
+             _iOpcode->test(0) == false)
+    {
+      // std::cout << "beq" << std::endl;
+      _oRegDst->set(0, false);
+      _oALUSrc->set(0, false);
+      _oMemToReg->set(0, false);
+      _oRegWrite->set(0, false);
+      _oMemRead->set(0, false);
+      _oMemWrite->set(0, false);
+      _oBranch->set(0, true);
+      _oALUOp->set(1, false);
+      _oALUOp->set(0, true);
+    }
+    // I-type
+    // addi, slti, andi, ori
+    // addi
+    // iOpcode = 001000 (0x08)
+    else if (_iOpcode->test(5) == false &&
+             _iOpcode->test(4) == false &&
+             _iOpcode->test(3) == true &&
+             _iOpcode->test(2) == false &&
+             _iOpcode->test(1) == false &&
+             _iOpcode->test(0) == false)
+    {
+      // std::cout << "addi" << std::endl;
+      _oRegDst->set(0, false);
+      _oALUSrc->set(0, true);
+      _oMemToReg->set(0, false);
+      _oRegWrite->set(0, true);
+      _oMemRead->set(0, false);
+      _oMemWrite->set(0, false);
+      _oBranch->set(0, false);
+      _oALUOp->set(0, false);
+      _oALUOp->set(1, false);
+    }
+    // slti
+    // Opcode = 001010 (0x0A)
+    else if (_iOpcode->test(5) == false &&
+             _iOpcode->test(4) == false &&
+             _iOpcode->test(3) == true &&
+             _iOpcode->test(2) == false &&
+             _iOpcode->test(1) == true &&
+             _iOpcode->test(0) == false)
+    {
+      // std::cout << "slti" << std::endl;
+      _oRegDst->set(0, false);
+      _oALUSrc->set(0, false);
+      _oMemToReg->set(0, false);
+      _oRegWrite->set(0, true);
+      _oMemRead->set(0, false);
+      _oMemWrite->set(0, false);
+      _oBranch->set(0, false);
+      _oALUOp->set(0, false);
+      _oALUOp->set(1, true);
+    }
+    // andi
+    // Opcode = 001100 (0x0C)
+    else if (_iOpcode->test(5) == false &&
+             _iOpcode->test(4) == false &&
+             _iOpcode->test(3) == true &&
+             _iOpcode->test(2) == true &&
+             _iOpcode->test(1) == false &&
+             _iOpcode->test(0) == false)
+    {
+      // std::cout << "andi" << std::endl;
+      _oRegDst->set(0, false);
+      _oALUSrc->set(0, true);
+      _oMemToReg->set(0, false);
+      _oRegWrite->set(0, true);
+      _oMemRead->set(0, false);
+      _oMemWrite->set(0, false);
+      _oBranch->set(0, false);
+      _oALUOp->set(0, false);
+      _oALUOp->set(1, false);
+    }
+    // ori
+    // Opcode = 001101 (0x0D)
+    else if (_iOpcode->test(5) == false &&
+             _iOpcode->test(4) == false &&
+             _iOpcode->test(3) == true &&
+             _iOpcode->test(2) == true &&
+             _iOpcode->test(1) == false &&
+             _iOpcode->test(0) == true)
+    {
+      // std::cout << "ori" << std::endl;
+      _oRegDst->set(0, false);
+      _oALUSrc->set(0, true);
+      _oMemToReg->set(0, false);
+      _oRegWrite->set(0, true);
+      _oMemRead->set(0, false);
+      _oMemWrite->set(0, false);
+      _oBranch->set(0, false);
+      _oALUOp->set(0, false);
+      _oALUOp->set(1, false);
+    }
+  }
 
-  private:
-
-    const Wire<6> *_iOpcode;
-    Wire<1> *_oRegDst;
-    Wire<1> *_oALUSrc;
-    Wire<1> *_oMemToReg;
-    Wire<1> *_oRegWrite;
-    Wire<1> *_oMemRead;
-    Wire<1> *_oMemWrite;
-    Wire<1> *_oBranch;
-    Wire<2> *_oALUOp;
-
+private:
+  const Wire<6> *_iOpcode;
+  Wire<1> *_oRegDst;
+  Wire<1> *_oALUSrc;
+  Wire<1> *_oMemToReg;
+  Wire<1> *_oRegWrite;
+  Wire<1> *_oMemRead;
+  Wire<1> *_oMemWrite;
+  Wire<1> *_oBranch;
+  Wire<2> *_oALUOp;
 };
 
 #endif
-
