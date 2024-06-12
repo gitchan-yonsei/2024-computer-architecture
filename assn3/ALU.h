@@ -3,79 +3,169 @@
 
 #include "DigitalCircuit.h"
 
+#include <iostream>
 #include <cassert>
 
-class ALU : public DigitalCircuit {
+class ALU : public DigitalCircuit
+{
 
-  public:
+public:
+  ALU(const Wire<4> *iALUControl,
+      const Wire<32> *iInput0,
+      const Wire<32> *iInput1,
+      Wire<32> *oOutput,
+      Wire<1> *oZero) : DigitalCircuit("ALU")
+  {
+    _iALUControl = iALUControl;
+    _iInput0 = iInput0;
+    _iInput1 = iInput1;
+    _oOutput = oOutput;
+    _oZero = oZero;
+  }
 
-    ALU(const Wire<4> *iALUControl,
-        const Wire<32> *iInput0,
-        const Wire<32> *iInput1,
-        Wire<32> *oOutput,
-        Wire<1> *oZero) : DigitalCircuit("ALU") {
-      _iALUControl = iALUControl;
-      _iInput0 = iInput0;
-      _iInput1 = iInput1;
-      _oOutput = oOutput;
-      _oZero = oZero;
-    }
+  virtual void advanceCycle()
+  {
+    _oOutput->reset();
+    _oZero->reset();
 
-    virtual void advanceCycle() {
-        // INPUT
-        // input0: ALU의 첫 번째 32비트 입력값
-        // input1: ALU의 두 번째 32비트 입력값
+    // ALU that supports 32bit signed integer AND, OR, ADD, SUB, SLT, NOR
+    // 0000: AND, 0001: OR, 0010: ADD, 0110: SUB, 0111: SLT, 1100: NOR
 
-        // OUTPUT
-        // output: ALU의 32비트 출력값
-        // zero: ALU의 zero flag -> output이 0이면 1로 설정됨
+    // print 0, 1, 2, 3 bits of alucontrol in order
+    // std::cout << "ALU Control: " << _iALUControl->test(3) << _iALUControl->test(2) << _iALUControl->test(1) << _iALUControl->test(0) << std::endl;
 
-        // 파라미터를 받아오고 초기값 설정
-        uint32_t aluControl = static_cast<uint32_t>(_iALUControl->to_ulong());
-        uint32_t input0 = static_cast<uint32_t>(_iInput0->to_ulong());
-        uint32_t input1 = static_cast<uint32_t>(_iInput1->to_ulong());
-        uint32_t output = 0;
-
-        // ALU Control에 따라 연산의 종류 결정
-      switch (aluControl) {
-        case 0b0000: // AND
-          output = input0 & input1;
-          break;
-        case 0b0001: // OR
-          output = input0 | input1;
-          break;
-        case 0b0010: // add
-          output = input0 + input1;
-          break;
-        case 0b0110: // subtract
-          output = input0 - input1;
-          break;
-        case 0b0111: // set on less than
-          output = (input0 < input1) ? 1 : 0;
-          break;
-        case 0b1100: // NOR
-          output = ~(input0 | input1);
-          break;
-        default:
-          assert(false && "지원하지 않는 ALU Control입니다.");
+    // 0000 AND
+    if (_iALUControl->test(3) == false &&
+        _iALUControl->test(2) == false &&
+        _iALUControl->test(1) == false &&
+        _iALUControl->test(0) == false)
+    {
+      // std::cout << "AND" << std::endl;
+      for (size_t i = 0; i < 32; i++)
+      {
+        _oOutput->set(i, _iInput0->test(i) && _iInput1->test(i));
       }
-
-      // Set the output value
-      *_oOutput = std::bitset<32>(output);
-
-      // Set the zero flag
-      *_oZero = std::bitset<1>(output == 0);
     }
+    // 0001 OR
+    else if (_iALUControl->test(3) == false &&
+             _iALUControl->test(2) == false &&
+             _iALUControl->test(1) == false &&
+             _iALUControl->test(0) == true)
+    {
+      // std::cout << "OR" << std::endl;
+      for (size_t i = 0; i < 32; i++)
+      {
+        _oOutput->set(i, _iInput0->test(i) || _iInput1->test(i));
+      }
+    }
+    // 0010 ADD
+    else if (_iALUControl->test(3) == false &&
+             _iALUControl->test(2) == false &&
+             _iALUControl->test(1) == true &&
+             _iALUControl->test(0) == false)
+    {
+      unsigned tmp = 0;
+      for (size_t i = 0; i < 32; i++)
+      {
+        if (_iInput0->test(i))
+        {
+          tmp++;
+        }
+        if (_iInput1->test(i))
+        {
+          tmp++;
+        }
+        _oOutput->set(i, (tmp % 2) == 1 ? true : false);
+        tmp /= 2;
+      }
+      if (tmp > 0)
+      {
+        _oZero->set(0, true);
+      }
+      // print add input0 + input1 = output  in one line
+      // std::cout << "Add Input0: " << _iInput0->to_ulong() << " + Input1: " << _iInput1->to_ulong() << " = Output: " << _oOutput->to_ulong() << std::endl;
+    }
+    // 0110 SUB
+    else if (_iALUControl->test(3) == false &&
+             _iALUControl->test(2) == true &&
+             _iALUControl->test(1) == true &&
+             _iALUControl->test(0) == false)
+    {
+      unsigned carry = 1;
+      for (size_t i = 0; i < 32; i++)
+      {
+        if (_iInput0->test(i))
+        {
+          carry++;
+        }
+        if (!(_iInput1->test(i)))
+        {
+          carry++;
+        }
+        _oOutput->set(i, (carry % 2) == 1 ? true : false);
+        carry /= 2;
+      }
+      if (carry > 0)
+      {
+        _oZero->set(0, true);
+      }
+      // print sub input0 - input1 = output  in one line
+      // std::cout << "Sub Input0: " << _iInput0->to_ulong() << " - Input1: " << _iInput1->to_ulong() << " = Output: " << _oOutput->to_ulong() << std::endl;
+    }
+    // 0111 SLT
+    // set 1 if iInput0 is less than iInput1, otherwise set 0
+    else if (_iALUControl->test(3) == false &&
+             _iALUControl->test(2) == true &&
+             _iALUControl->test(1) == true &&
+             _iALUControl->test(0) == true)
+    {
+      bool isLess = false;
+      for (size_t i = 31; i >= 0; i--)
+      {
+        if (_iInput0->test(i) && !(_iInput1->test(i)))
+        {
+          isLess = true;
+          break;
+        }
+        else if (!(_iInput0->test(i)) && _iInput1->test(i))
+        {
+          isLess = false;
+          break;
+        }
+      }
+      _oOutput->set(0, !isLess);
+      // print slt input0 < input1 = output  in one line
+      // std::cout << "SLT Input0: " << _iInput0->to_ulong() << " < Input1: " << _iInput1->to_ulong() << " = Output: " << _oOutput->to_ulong() << std::endl;
+    }
+    // 1100 NOR
+    else if (_iALUControl->test(3) == true &&
+             _iALUControl->test(2) == true &&
+             _iALUControl->test(1) == false &&
+             _iALUControl->test(0) == false)
+    {
+      // std::cout << "NOR" << std::endl;
+      for (size_t i = 0; i < 32; i++)
+      {
+        _oOutput->set(i, !(_iInput0->test(i) || _iInput1->test(i)));
+      }
+    }
+    else
+    {
+      assert(false && "Invalid ALU control signal");
+    }
+    // set the zero signal to 1 if the output value is zero
+    if (_oOutput->to_ulong() == 0)
+    {
+      _oZero->set(0, true);
+    }
+  }
 
-  private:
-
-    const Wire<4> *_iALUControl;
-    const Wire<32> *_iInput0;
-    const Wire<32> *_iInput1;
-    Wire<32> *_oOutput;
-    Wire<1> *_oZero;
-
+private:
+  const Wire<4> *_iALUControl;
+  const Wire<32> *_iInput0;
+  const Wire<32> *_iInput1;
+  Wire<32> *_oOutput;
+  Wire<1> *_oZero;
 };
 
 #endif
-
