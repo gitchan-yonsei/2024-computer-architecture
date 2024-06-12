@@ -96,13 +96,94 @@ class PipelinedCPU : public DigitalCircuit {
       const char *instMemFileName,
       const char *dataMemFileName
     ) : DigitalCircuit(name) {
-      /* FIXME */
+
+        // Initialize wires and always-set wires
+        _alwaysHi = 1;
+        _alwaysLo = 0;
+
+        // Initialize IF stage components
+        _instMemory = new Memory("InstructionMemory", &_PC, nullptr, &_alwaysHi, &_alwaysLo, &_latchIFID.instruction, memoryEndianness);
+        _adderPCPlus4 = new Adder<32>("Adder_PC_Plus_4", &_PC, &Wire<32>(4), &_pcPlus4);
+
+        // Initialize ID stage components
+        _control = new Control("Control", &_opcode, &_ctrlRegDst, &_ctrlALUSrc, &_ctrlMemToReg, &_ctrlRegWrite, &_ctrlMemRead, &_ctrlMemWrite, &_ctrlBranch, &_ctrlALUOp);
+        _registerFile = new RegisterFile("RegisterFile", &_regFileReadRegister1, &_regFileReadRegister2, &_muxRegFileWriteRegisterOutput, &_regFileWriteData, &_ctrlRegWrite, &_regFileReadData1, &_regFileReadData2, regFileName);
+        _signExtend = new SignExtend<16, 32>("SignExtend", &_signExtendInput, &_signExtendOutput);
+
+        // Initialize EX stage components
+        _adderBranchTargetAddr = new Adder<32>("Adder_Branch_Target_Addr", &_latchIDEX.pcPlus4, &_latchIDEX.signExtImmediate, &_branchTargetAddr);
+        _muxALUSrc = new MUX<32>("MUX_ALU_Src", &_latchIDEX.regFileReadData2, &_latchIDEX.signExtImmediate, &_latchIDEX.ctrlEX.aluSrc, &_muxALUSrcOutput);
+        _aluControl = new ALUControl("ALUControl", &_latchIDEX.ctrlEX.aluOp, &_aluCtrlFunct, &_aluCtrlOp);
+        _alu = new ALU("ALU", &_aluCtrlOp, &_latchIDEX.regFileReadData1, &_muxALUSrcOutput, &_aluResult, &_aluZero);
+        _muxRegDst = new MUX<5>("MUX_RegDst", &_latchIDEX.rt, &_latchIDEX.rd, &_latchIDEX.ctrlEX.regDst, &_regDstIdx);
+
+        // Initialize MEM stage components
+        _dataMemory = new Memory("DataMemory", &_aluResult, &_latchEXMEM.regFileReadData2, &_latchEXMEM.ctrlMEM.memRead, &_latchEXMEM.ctrlMEM.memWrite, &_dataMemReadData, memoryEndianness);
+        _muxPCSrc = new MUX<32>("MUX_PC_Src", &_pcPlus4, &_branchTargetAddr, &_muxPCSelect, &_PC);
+
+        // Initialize WB stage components
+        _muxMemToReg = new MUX<32>("MUX_MemToReg", &_latchMEMWB.aluResult, &_latchMEMWB.dataMemReadData, &_latchMEMWB.ctrlWB.memToReg, &_muxMemToRegOutput);
     }
 
     virtual void advanceCycle() {
       _currCycle += 1;
 
-      /* FIXME: implement the per-cycle behavior of the five-stage pipelined MIPS CPU */
+        // IF Stage
+        _instMemory->advanceCycle();
+        _latchIFID.pcPlus4 = _adderPCPlus4->output();
+        _latchIFID.instruction = _instMemory->read(_PC.to_ulong());
+
+        // Update PC
+        _muxPCSelect = (_ctrlBranch && _aluZero) ? 1 : 0;
+        _PC = _muxPCSrc->output();
+
+        // ID Stage
+        _opcode = _latchIFID.instruction.to_ulong() >> 26; // 명령어 상위 6비트 추출
+        _control->advanceCycle();
+        _regFileReadRegister1 = (_latchIFID.instruction.to_ulong() >> 21) & 0x1F;
+        _regFileReadRegister2 = (_latchIFID.instruction.to_ulong() >> 16) & 0x1F;
+        _muxRegFileWriteRegisterOutput = _regFileReadRegister2;
+        _muxRegFileWriteRegisterOutput = (_latchIFID.instruction.to_ulong() >> 11) & 0x1F;
+        _registerFile->advanceCycle();
+        _signExtendInput = _latchIFID.instruction.to_ulong() & 0xFFFF;
+        _signExtend->advanceCycle();
+
+        _latchIDEX.ctrlWB = _control->wbControl();
+        _latchIDEX.ctrlMEM = _control->memControl();
+        _latchIDEX.ctrlEX = _control->exControl();
+        _latchIDEX.pcPlus4 = _latchIFID.pcPlus4;
+        _latchIDEX.regFileReadData1 = _regFileReadData1;
+        _latchIDEX.regFileReadData2 = _regFileReadData2;
+        _latchIDEX.signExtImmediate = _signExtendOutput;
+        _latchIDEX.rt = _regFileReadRegister2;
+        _latchIDEX.rd = _muxRegFileWriteRegisterOutput;
+
+        // EX Stage
+        _aluCtrlFunct = _latchIDEX.signExtImmediate.to_ulong() & 0x3F;
+        _aluControl->advanceCycle();
+        _muxALUSrc->advanceCycle();
+        _alu->advanceCycle();
+
+        _latchEXMEM.ctrlWB = _latchIDEX.ctrlWB;
+        _latchEXMEM.ctrlMEM = _latchIDEX.ctrlMEM;
+        _latchEXMEM.branchTargetAddr = _adderBranchTargetAddr->output();
+        _latchEXMEM.aluZero = _alu->zero();
+        _latchEXMEM.aluResult = _alu->result();
+        _latchEXMEM.regFileReadData2 = _latchIDEX.regFileReadData2;
+        _latchEXMEM.regDstIdx = _muxRegDst->output();
+
+        // MEM Stage
+        _dataMemory->advanceCycle();
+        _latchMEMWB.ctrlWB = _latchEXMEM.ctrlWB;
+        _latchMEMWB.dataMemReadData = _dataMemory->readData();
+        _latchMEMWB.aluResult = _latchEXMEM.aluResult;
+        _latchMEMWB.regDstIdx = _latchEXMEM.regDstIdx;
+
+        // WB Stage
+        _muxMemToReg->advanceCycle();
+        if (_latchMEMWB.ctrlWB.regWrite.test(0)) {
+            _registerFile->write(_latchMEMWB.regDstIdx, _muxMemToRegOutput);
+        }
     }
 
     ~PipelinedCPU() {
