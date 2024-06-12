@@ -398,7 +398,7 @@ Latches:
     branchTargetAddr = 0x0001908c
     aluZero          = 0b0
     aluResult        = 0x44447777
-    regFileReadData2 = 0x00000000
+    regFileReadData2 = 0x01237777
     regDstIdx        = 0b01100
   MEM-WB Latch:
     ctrlWBMemToReg   = 0b0
