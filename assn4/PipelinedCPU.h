@@ -96,13 +96,218 @@ class PipelinedCPU : public DigitalCircuit {
       const char *instMemFileName,
       const char *dataMemFileName
     ) : DigitalCircuit(name) {
-      /* FIXME */
+      _currCycle = 0;
+
+      _alwaysHi = 1;
+      _alwaysLo = 0;
+
+      _PC = initialPC;
+
+      _registerFile =
+        new RegisterFile(
+                &_regReadRegister1,       // $rs
+                &_regReadRegister2,       // $rt
+                &_muxRegWriteRegisterOut, // if Write=1, write $rd
+                &_regWriteData,           // if Write=1, write ALU result or data memory read data
+                &_ctrlRegWrite,           // RegWrite
+                &_regReadData1,           // if Write=0, read $rs
+                &_regReadData2,           // if Write=0, read $rt
+                regName
+                );
+
+      // Instruction Memory read from PC and write to instruction register
+    _instMemory = new Memory(
+            "InstructionMemory",
+            &_PC,                 // Read address
+            &_alwaysLo32,         // Write data  (no writing to instruction memory)
+            &_alwaysHi,           // ctrlMemRead (always 1)
+            &_alwaysLo,           // ctrlMemWrite (unused)
+            &_instMemInstruction, // Output read data
+            Memory::LittleEndian, // Endianness
+            instMemFileName       // File name
+            );
+
+    _dataMemory = new Memory(
+            "DataMemory",
+            &_aluResult,          // address
+            &_regReadData2,       // write data
+            &_ctrlMemRead,        // MemRead
+            &_ctrlMemWrite,       // MemWrite
+            &_dataMemReadData,    // Output read data
+            Memory::LittleEndian, // Endianness
+            dataMemFileName       // File name
+            );
+
+    _control = new Control(
+            &_ctrlOpcode, // Input opcode
+            &_ctrlRegDst,
+            &_ctrlALUSrc,
+            &_ctrlMemToReg,
+            &_ctrlRegWrite,
+            &_ctrlMemRead,
+            &_ctrlMemWrite,
+            &_ctrlBranch,
+            &_ctrlALUOp
+            );
+
+    _aluControl = new ALUControl(
+            &_ctrlALUOp,    // ALU operation 2 bits
+            &_aluCtrlFunct, // ALU function 6 bits
+            &_aluCtrlOp     // Result operation in 4 bits
+            );
+
+     _alu = new ALU(
+             &_aluCtrlOp,          // ALU operation (e.g., ADD, SUB, AND, OR, SLT, NOR)
+             &_regReadData1,       // $rs
+             &_muxALUInput1Output, // ALU second input (either $rt or imm)
+             &_aluResult,          // ALU result
+             &_aluZero             // ALU zero flag
+             );
+
+     _muxWriteRegister = new MUX<5>(
+             "MUX_RegFileWriteRegister",
+             &_muxWriteRegInput0,
+             &_muxWriteRegInput1,
+             &_ctrlRegDst,
+             &_muxRegWriteRegisterOut
+             );
+
+    _muxALUInput1 = new MUX<32>(
+            "MUX_ALUInput1",
+            &_regReadData2,        // $rt
+            &_signExtendOutput,    // sign-extended imm
+            &_ctrlALUSrc,          // I-type or R-type
+            &_muxALUInput1Output   // ALU second input
+            );
+
+    // MUX for selecting between ALU result and data memory read data
+    _muxRegWriteData = new MUX<32>(
+            "MUX_RegFileWriteData",
+            &_aluResult,
+            &_dataMemReadData,
+            &_ctrlMemToReg,
+            &_regWriteData
+            );
+
+    _muxPC = new MUX<32>(
+            "MUX_PC",
+            &_muxPCInput0,
+            &_muxPCInput1,
+            &_muxPCSelect,
+            &_PC
+            );
     }
 
     virtual void advanceCycle() {
       _currCycle += 1;
 
-      /* FIXME: implement the per-cycle behavior of the five-stage pipelined MIPS CPU */
+    // IF
+    _instMemory->advanceCycle();
+
+
+
+    // ID
+    _ctrlOpcode = (_instMemInstruction >> 26).to_ulong();
+    _ctrlRegDst.reset();
+    _ctrlALUSrc.reset();
+    _ctrlMemToReg.reset();
+    _ctrlRegWrite.reset();
+    _ctrlMemRead.reset();
+    _ctrlMemWrite.reset();
+    _ctrlBranch.reset();
+    _ctrlALUOp.reset();
+
+    _control->advanceCycle(); // set control signals
+
+    _muxWriteRegInput0.reset();
+    _muxWriteRegInput1.reset();
+    for (size_t i = 0; i < 5; ++i)
+    {
+      if (_instMemInstruction.test(i + 16))
+      {
+        _muxWriteRegInput0.set(i); // $rt
+      }
+      if (_instMemInstruction.test(i + 11))
+      {
+        _muxWriteRegInput1.set(i); // $rd
+      }
+    }
+    _muxWriteRegister->advanceCycle();
+
+    _regReadRegister1.reset();
+    _regReadRegister2.reset();
+
+    for (size_t i = 0; i < 5; ++i)
+    {
+      if (_instMemInstruction.test(i + 21))
+      {
+        _regReadRegister1.set(i); // $rs
+      }
+      if (_instMemInstruction.test(i + 16))
+      {
+        _regReadRegister2.set(i); // $rt
+      }
+    }
+    _registerFile->advanceCycle();
+
+    _signExtendInput.reset();
+    for (size_t i = 0; i < 16; ++i)
+    {
+      if (_instMemInstruction.test(i))
+      {
+        _signExtendInput.set(i);
+      }
+    }
+
+    if (_signExtendInput.test(15))
+    {
+      for (size_t i = 16; i < 32; ++i)
+      {
+        _signExtendInput.set(i);
+      }
+    }
+
+    _signExtendOutput.reset();
+    for (size_t i = 0; i < 32; ++i)
+    {
+      if (i < 16 && _signExtendInput.test(i))
+      {
+        _signExtendOutput.set(i);
+      }
+      else if (i >= 16 && _signExtendInput.test(15))
+      {
+        _signExtendOutput.set(i);
+      }
+    }
+
+    _muxALUInput1->advanceCycle();
+
+    _aluCtrlFunct.reset();
+    for (size_t i = 0; i < 6; ++i)
+    {
+      if (_instMemInstruction.test(i))
+      {
+        _aluCtrlFunct.set(i);
+      }
+    }
+    _aluControl->advanceCycle();
+
+
+    // EXE
+    _alu->advanceCycle();
+
+    // MEM
+    _dataMemory->advanceCycle();
+
+    // WB
+    _muxRegWriteData->advanceCycle();
+    _registerFile->advanceCycle();
+    _muxPCInput0 = _PC.to_ulong() + 4; // PC + 4
+    _muxPCInput1 = _PC.to_ulong() + 4 + (_signExtendOutput.to_ulong() << 2);
+
+    // Update PC
+    _muxPCSelect = (_ctrlBranch.test(0) & _aluZero.test(0));
+    _muxPC->advanceCycle();
     }
 
     ~PipelinedCPU() {
