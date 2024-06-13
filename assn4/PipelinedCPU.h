@@ -100,111 +100,109 @@ class PipelinedCPU : public DigitalCircuit {
 
     _PC = initialPC;
 
-      _registerFile =
-        new RegisterFile(
-                &_regReadRegister1,       // $rs
-                &_regReadRegister2,       // $rt
-                &_muxRegWriteRegisterOut, // if Write=1, write $rd
-                &_regWriteData,           // if Write=1, write ALU result or data memory read data
-                &_ctrlRegWrite,           // RegWrite
-                &_regReadData1,           // if Write=0, read $rs
-                &_regReadData2,           // if Write=0, read $rt
-                regName
-                );
+       _registerFile =
+            new RegisterFile(
+                &_regFileReadRegister1,       // $rs
+                &_regFileReadRegister2,       // $rt
+                &_latchMEMWB.regDstIdx,       // if Write=1, write $rd
+                &_muxMemToRegOutput,          // if Write=1, write ALU result or data memory read data
+                &_latchMEMWB.ctrlWB.regWrite, // RegWrite
+                &_latchIDEX.regFileReadData1, // if Write=0, read $rs
+                &_latchIDEX.regFileReadData2, // if Write=0, read $rt
+                regFileName                   // 파일 이름
+            );
 
       // Instruction Memory read from PC and write to instruction register
     _instMemory = new Memory(
             "InstructionMemory",
-            &_PC,                 // Read address
-            &_alwaysLo32,         // Write data  (no writing to instruction memory)
-            &_alwaysHi,           // ctrlMemRead (always 1)
-            &_alwaysLo,           // ctrlMemWrite (unused)
-            &_instMemInstruction, // Output read data
-            Memory::LittleEndian, // Endianness
-            instMemFileName       // File name
-            );
+            &_PC,                    // Read address
+            nullptr,            // Write data  (no writing to instruction memory)
+            &_alwaysHi,              // ctrlMemRead (always 1)
+            &_alwaysLo,              // ctrlMemWrite (unused)
+            &_latchIFID.instruction, // Output read data
+            memoryEndianness,        // Endianness
+            instMemFileName          // File name
+        );
 
     _dataMemory = new Memory(
             "DataMemory",
-            &_aluResult,          // address
-            &_regReadData2,       // write data
-            &_ctrlMemRead,        // MemRead
-            &_ctrlMemWrite,       // MemWrite
-            &_dataMemReadData,    // Output read data
-            Memory::LittleEndian, // Endianness
-            dataMemFileName       // File name
-            );
+            &_latchEXMEM.aluResult,     // address
+            &_latchEXMEM.regFileReadData2, // write data
+            &_latchEXMEM.ctrlMEM.memRead,  // MemRead
+            &_latchEXMEM.ctrlMEM.memWrite, // MemWrite
+            &_latchMEMWB.dataMemReadData,  // Output read data
+            memoryEndianness,              // Endianness
+            dataMemFileName                // File name
+        );
 
-    _control = new Control(
-            &_ctrlOpcode, // Input opcode
-            &_ctrlRegDst,
-            &_ctrlALUSrc,
-            &_ctrlMemToReg,
-            &_ctrlRegWrite,
-            &_ctrlMemRead,
-            &_ctrlMemWrite,
-            &_ctrlBranch,
-            &_ctrlALUOp
-            );
+        _control = new Control(
+            &_opcode,                       // Input opcode
+            &_latchIDEX.ctrlEX.regDst
+            &_latchIDEX.ctrlEX.aluOp,
+            &_latchIDEX.ctrlEX.aluSrc,
+            &_latchIDEX.ctrlMEM.branch,
+            &_latchIDEX.ctrlMEM.memRead,
+            &_latchIDEX.ctrlMEM.memWrite,
+            &_latchIDEX.ctrlWB.memToReg,
+            &_latchIDEX.ctrlWB.regWrite
+        );
 
     _aluControl = new ALUControl(
-            &_ctrlALUOp,    // ALU operation 2 bits
-            &_aluCtrlFunct, // ALU function 6 bits
-            &_aluCtrlOp     // Result operation in 4 bits
-            );
+            &_latchIDEX.ctrlEX.aluOp,   // ALU operation 2 bits
+            &_aluControlInput,          // ALU function 6 bits
+            &_aluControlOutput          // Result operation in 4 bits
+        );
 
      _alu = new ALU(
-             &_aluCtrlOp,          // ALU operation (e.g., ADD, SUB, AND, OR, SLT, NOR)
-             &_regReadData1,       // $rs
-             &_muxALUInput1Output, // ALU second input (either $rt or imm)
-             &_aluResult,          // ALU result
-             &_aluZero             // ALU zero flag
-             );
+            &_aluControlOutput,             // ALU operation (e.g., ADD, SUB, AND, OR, SLT, NOR)
+            &_latchIDEX.regFileReadData1,   // $rs
+            &_muxALUSrcOutput,              // ALU second input (either $rt or imm)
+            &_latchEXMEM.aluResult,         // ALU result
+            &_latchEXMEM.aluZero            // ALU zero flag
+        );
 
-     _muxWriteRegister = new MUX<5>(
-             "MUX_RegFileWriteRegister",
-             &_muxWriteRegInput0,
-             &_muxWriteRegInput1,
-             &_ctrlRegDst,
-             &_muxRegWriteRegisterOut
-             );
+     _muxRegDst = new MUX2<5>(
+            "MUX_RegFileWriteRegister",
+            &_latchIDEX.rt,
+            &_latchIDEX.rd,
+            &_latchIDEX.ctrlEX.regDst,
+            &_latchEXMEM.regDstIdx
+        );
 
-    _muxALUInput1 = new MUX<32>(
+      _muxALUSrc = new MUX2<32>(
             "MUX_ALUInput1",
-            &_regReadData2,        // $rt
-            &_signExtendOutput,    // sign-extended imm
-            &_ctrlALUSrc,          // I-type or R-type
-            &_muxALUInput1Output   // ALU second input
-            );
+            &_latchIDEX.regFileReadData2,  // $rt
+            &_latchIDEX.signExtImmediate,  // sign-extended imm
+            &_latchIDEX.ctrlEX.aluSrc,     // I-type or R-type
+            &_muxALUSrcOutput              // ALU second input
+        );
 
-    // MUX for selecting between ALU result and data memory read data
-    _muxRegWriteData = new MUX<32>(
+        // MUX for selecting between ALU result and data memory read data
+        _muxMemToReg = new MUX2<32>(
             "MUX_RegFileWriteData",
-            &_aluResult,
-            &_dataMemReadData,
-            &_ctrlMemToReg,
-            &_regWriteData
-            );
+            &_latchMEMWB.aluResult,
+            &_latchMEMWB.dataMemReadData,
+            &_latchMEMWB.ctrlWB.memToReg,
+            &_muxMemToRegOutput
+        );
 
-    _muxPC = new MUX<32>(
+         _muxPCSrc = new MUX2<32>(
             "MUX_PC",
-            &_muxPCInput0,
-            &_muxPCInput1,
-            &_muxPCSelect,
+            &_pcPlus4,
+            &_latchEXMEM.branchTargetAddr,
+            &_muxPCSrcSelect,
             &_PC
-            );
+        );
     }
 
     virtual void advanceCycle() {
       _currCycle += 1;
 
     // [IF] stage
-    _instMemory->advanceCycle();
-//    _PC = _muxPCSrc->advanceCycle();
-
+    _PC = _muxPCSrc->advanceCycle();
 
     // save to IF/ID Latch
-    _latchIFID.pcPlus4 = _PC.to_ulong() + 4;
+    _latchIFID.pcPlus4 = _pcPlus4 + 4;
     _latchIFID.instruction = _instMemory->advanceCycle();
 
     // [ID] stage
@@ -223,25 +221,27 @@ class PipelinedCPU : public DigitalCircuit {
     unsigned int _immediate = _instruction & 0xFFFF;          // 하위 16비트 (immediate)
     unsigned int _address = _instruction & 0x3FFFFFF;         // 하위 26비트 (address)
 
-    _ctrlOpcode = _opcode;
     _control->advanceCycle();
 
-    // save to ID/EX latch
-    _latchIDEX.ctrlWB.regWrite = _control->regWrite();
-    _latchIDEX.ctrlWB.memToReg = _control->memToReg();
-    _latchIDEX.ctrlMEM.branch = _control->branch();
-    _latchIDEX.ctrlMEM.memRead = _control->memRead();
-    _latchIDEX.ctrlMEM.memWrite = _control->memWrite();
-    _latchIDEX.ctrlEX.regDst = _control->regDst();
-    _latchIDEX.ctrlEX.aluOp = _control->aluOp();
-    _latchIDEX.ctrlEX.aluSrc = _control->aluSrc();
-    _latchIDEX.pcPlus4 = _latchIFID.pcPlus4;
-    _latchIDEX.regFileReadData1 = _regReadData1;
-    _latchIDEX.regFileReadData2 = _regReadData2;
-    _latchIDEX.signExtImmediate = _signExtendOutput;
-    _latchIDEX.rt = (_latchIFID.instruction.to_ulong() >> 16) & 0x1F;
-    _latchIDEX.rd = (_latchIFID.instruction.to_ulong() >> 11) & 0x1F;
+    // Read Register Data
+    _latchIDEX.regFileReadData1 = _registerFile->readData(rs);
+    _latchIDEX.regFileReadData2 = _registerFile->readData(rt);
+    _registerFile->advanceCycle();
+    _latchIDEX.regFileReadData1 = *_registerFile->readData1()
 
+    // save to ID/EX latch
+    _latchIDEX.pcPlus4 = _pcPlus4;
+    _latchIDEX.rs = rs;
+    _latchIDEX.rt = rt;
+    _latchIDEX.rd = rd;
+    _latchIDEX.ctrlEX.regDst = *_control->_oRegDst;
+    _latchIDEX.ctrlEX.aluOp = *_control->_oALUOp;
+    _latchIDEX.ctrlEX.aluSrc = *_control->_oALUSrc;
+    _latchIDEX.ctrlMEM.branch = *_control->_oBranch;
+    _latchIDEX.ctrlMEM.memRead = *_control->_oMemRead;
+    _latchIDEX.ctrlMEM.memWrite = *_control->_oMemWrite;
+    _latchIDEX.ctrlWB.memToReg = *_control->_oMemToReg;
+    _latchIDEX.ctrlWB.regWrite = *_control->_oRegWrite;
     // [EXE] stage
 
     // fetch from ID/EX Latch
