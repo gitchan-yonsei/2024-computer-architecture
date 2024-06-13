@@ -96,12 +96,9 @@ class PipelinedCPU : public DigitalCircuit {
       const char *instMemFileName,
       const char *dataMemFileName
     ) : DigitalCircuit(name) {
-      _currCycle = 0;
+    _currCycle = 0;
 
-      _alwaysHi = 1;
-      _alwaysLo = 0;
-
-      _PC = initialPC;
+    _PC = initialPC;
 
       _registerFile =
         new RegisterFile(
@@ -201,99 +198,35 @@ class PipelinedCPU : public DigitalCircuit {
     virtual void advanceCycle() {
       _currCycle += 1;
 
-    // IF
-    _PC = _muxPCSrc->advanceCycle();
+    // [IF] stage
+    _instMemory->advanceCycle();
+//    _PC = _muxPCSrc->advanceCycle();
+
+
+    // save to IF/ID Latch
     _latchIFID.pcPlus4 = _PC.to_ulong() + 4;
     _latchIFID.instruction = _instMemory->advanceCycle();
 
-    // ID
-    _ctrlOpcode = (_latchIFID.instruction.to_ulong() >> 26);
-    _control->advanceCycle(); // set control signals
+    // [ID] stage
 
-    _muxWriteRegInput0.reset();
-    _muxWriteRegInput1.reset();
+    // fetch from IF/ID Latch
+    unsigned long _instruction = _latchIFID.instruction.to_ulong();
+    _pcPlus4 = _latchIFID.pcPlus4;
 
-    for (size_t i = 0; i < 5; ++i)
-    {
-      if (_instMemInstruction.test(i + 16))
-      {
-        _muxWriteRegInput0.set(i); // $rt
-      }
-      if (_instMemInstruction.test(i + 11))
-      {
-        _muxWriteRegInput1.set(i); // $rd
-      }
-    }
-    _muxWriteRegister->advanceCycle();
+    // 32 bit instruction parsing
+    _opcode = (_instruction >> 26) & 0x3F;       // 상위 6비트 (opcode)
+    unsigned int _rs = (_instruction >> 21) & 0x1F;           // 다음 5비트 (rs)
+    unsigned int _rt = (_instruction >> 16) & 0x1F;           // 다음 5비트 (rt)
+    unsigned int _rd = (_instruction >> 11) & 0x1F;           // 다음 5비트 (rd)
+    unsigned int _shamt = (_instruction >> 6) & 0x1F;         // 다음 5비트 (shamt)
+    unsigned int _funct = _instruction & 0x3F;                // 하위 6비트 (funct)
+    unsigned int _immediate = _instruction & 0xFFFF;          // 하위 16비트 (immediate)
+    unsigned int _address = _instruction & 0x3FFFFFF;         // 하위 26비트 (address)
 
-    _regReadRegister1.reset();
-    _regReadRegister2.reset();
+    _ctrlOpcode = _opcode;
+    _control->advanceCycle();
 
-    for (size_t i = 0; i < 5; ++i)
-    {
-      if (_instMemInstruction.test(i + 21))
-      {
-        _regReadRegister1.set(i); // $rs
-      }
-      if (_instMemInstruction.test(i + 16))
-      {
-        _regReadRegister2.set(i); // $rt
-      }
-    }
-    _registerFile->advanceCycle();
-    _signExtendInput.reset();
-
-    for (size_t i = 0; i < 16; ++i)
-    {
-      if (_instMemInstruction.test(i))
-      {
-        _signExtendInput.set(i);
-      }
-    }
-
-    if (_signExtendInput.test(15))
-    {
-      for (size_t i = 16; i < 32; ++i)
-      {
-        _signExtendInput.set(i);
-      }
-    }
-    _signExtendOutput.reset();
-
-    for (size_t i = 0; i < 32; ++i)
-    {
-      if (i < 16 && _signExtendInput.test(i))
-      {
-        _signExtendOutput.set(i);
-      }
-      else if (i >= 16 && _signExtendInput.test(15))
-      {
-        _signExtendOutput.set(i);
-      }
-    }
-
-    _muxALUInput1->advanceCycle();
-    _aluCtrlFunct.reset();
-
-    for (size_t i = 0; i < 6; ++i)
-    {
-      if (_instMemInstruction.test(i))
-      {
-        _aluCtrlFunct.set(i);
-      }
-    }
-    _aluControl->advanceCycle();
-
-//    _ctrlRegDst.reset();
-//    _ctrlALUSrc.reset();
-//    _ctrlMemToReg.reset();
-//    _ctrlRegWrite.reset();
-//    _ctrlMemRead.reset();
-//    _ctrlMemWrite.reset();
-//    _ctrlBranch.reset();
-//    _ctrlALUOp.reset();
-
-    // Update ID/EX latch
+    // save to ID/EX latch
     _latchIDEX.ctrlWB.regWrite = _control->regWrite();
     _latchIDEX.ctrlWB.memToReg = _control->memToReg();
     _latchIDEX.ctrlMEM.branch = _control->branch();
@@ -308,6 +241,27 @@ class PipelinedCPU : public DigitalCircuit {
     _latchIDEX.signExtImmediate = _signExtendOutput;
     _latchIDEX.rt = (_latchIFID.instruction.to_ulong() >> 16) & 0x1F;
     _latchIDEX.rd = (_latchIFID.instruction.to_ulong() >> 11) & 0x1F;
+
+    // [EXE] stage
+
+    // fetch from ID/EX Latch
+    unsigned long reg1Data = _latchIDEX.reg1Data;
+    unsigned long reg2Data = _latchIDEX.reg2Data;
+    unsigned int rs = _latchIDEX.rs;
+    unsigned int rt = _latchIDEX.rt;
+    unsigned int rd = _latchIDEX.rd;
+    unsigned int shamt = _latchIDEX.shamt;
+    unsigned int funct = _latchIDEX.funct;
+    unsigned int immediate = _latchIDEX.immediate;
+    unsigned long pcPlus4 = _latchIDEX.pcPlus4;
+    unsigned int controlSignals = _latchIDEX.controlSignals;
+
+    // ALU
+
+
+
+
+
 
     // EXE
     _alu->advanceCycle();
