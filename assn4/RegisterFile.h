@@ -41,7 +41,7 @@ public:
             std::uint32_t reg, val;
             while (fscanf(initFile, " %u %x", &reg, &val) == 2) {
                 if (reg != 0) {
-                    printf("INFO: $%02u <-- 0x%08lx\n", reg, (unsigned long)val);
+                    printf("INFO: $%02u <-- 0x%08lx\n", reg, (unsigned long) val);
                     _registers[reg] = val;
                 }
             }
@@ -74,6 +74,14 @@ public:
         }
     }
 
+    uint32_t getReadData1() const {
+        return _oReadData1->to_ulong();
+    }
+
+    uint32_t getReadData2() const {
+        return _oReadData2->to_ulong();
+    }
+
 private:
 
     const Wire<5> *_iReadRegister1;
@@ -85,7 +93,6 @@ private:
     Wire<32> *_oReadData2;
 
     std::bitset<32> _registers[32];
-
 };
 
 #endif

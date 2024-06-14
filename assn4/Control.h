@@ -3,6 +3,23 @@
 
 #include "DigitalCircuit.h"
 
+struct ControlEX_t {
+    bool regDst;
+    bool aluSrc;
+    uint8_t aluOp;
+};
+
+struct ControlMEM_t {
+    bool memRead;
+    bool memWrite;
+    bool branch;
+};
+
+struct ControlWB_t {
+    bool regWrite;
+    bool memToReg;
+};
+
 class Control : public DigitalCircuit {
 
 public:
@@ -42,14 +59,14 @@ public:
         // ALUOp: ALU가 수행할 연산의 종류 지정 -> 00 (add), 01 (sub), 10 (R-Type 연산으로 funct 코드를 함께 보게 됨)
 
         // 초기값 설정 (모두 0으로 설정)
-        *_oRegDst = 0;
-        *_oALUSrc = 0;
-        *_oMemToReg = 0;
-        *_oRegWrite = 0;
-        *_oMemRead = 0;
-        *_oMemWrite = 0;
-        *_oBranch = 0;
-        *_oALUOp = 0b00;
+        _oRegDst->reset();
+        _oALUSrc->reset();
+        _oMemToReg->reset();
+        _oRegWrite->reset();
+        _oMemRead->reset();
+        _oMemWrite->reset();
+        _oBranch->reset();
+        _oALUOp->reset();
 
         /*
             [R-Type]
@@ -121,6 +138,29 @@ public:
         }
     }
 
+    ControlEX_t getEXControls() const {
+        ControlEX_t ctrlEX;
+        ctrlEX.regDst = _oRegDst->test(0);
+        ctrlEX.aluSrc = _oALUSrc->test(0);
+        ctrlEX.aluOp = static_cast<uint8_t>(_oALUOp->to_ulong());
+        return ctrlEX;
+    }
+
+    ControlMEM_t getMEMControls() const {
+        ControlMEM_t ctrlMEM;
+        ctrlMEM.memRead = _oMemRead->test(0);
+        ctrlMEM.memWrite = _oMemWrite->test(0);
+        ctrlMEM.branch = _oBranch->test(0);
+        return ctrlMEM;
+    }
+
+    ControlWB_t getWBControls() const {
+        ControlWB_t ctrlWB;
+        ctrlWB.regWrite = _oRegWrite->test(0);
+        ctrlWB.memToReg = _oMemToReg->test(0);
+        return ctrlWB;
+    }
+
 private:
 
     const Wire<6> *_iOpcode;
@@ -132,7 +172,6 @@ private:
     Wire<1> *_oMemWrite;
     Wire<1> *_oBranch;
     Wire<2> *_oALUOp;
-
 };
 
 #endif

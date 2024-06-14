@@ -12,7 +12,9 @@ class Memory : public DigitalCircuit {
 
 public:
 
-    enum Endianness { LittleEndian, BigEndian };
+    enum Endianness {
+        LittleEndian, BigEndian
+    };
 
     Memory(const std::string &name,
            const Wire<32> *iAddress,
@@ -41,18 +43,24 @@ public:
             std::uint32_t addr, value;
             while (fscanf(initFile, " %x %x", &addr, &value) == 2) {
                 printf("INFO: memory[0x%08lx..0x%08lx] <-- 0x%08lx\n",
-                       (unsigned long)addr, (unsigned long)(addr + 3),
-                       (unsigned long)value);
+                       (unsigned long) addr, (unsigned long) (addr + 3),
+                       (unsigned long) value);
                 if (_endianness == LittleEndian) {
-                    _memory[addr + 0] = (std::uint8_t)(value % 0x100); value >>= 8;
-                    _memory[addr + 1] = (std::uint8_t)(value % 0x100); value >>= 8;
-                    _memory[addr + 2] = (std::uint8_t)(value % 0x100); value >>= 8;
-                    _memory[addr + 3] = (std::uint8_t)(value % 0x100);
+                    _memory[addr + 0] = (std::uint8_t) (value % 0x100);
+                    value >>= 8;
+                    _memory[addr + 1] = (std::uint8_t) (value % 0x100);
+                    value >>= 8;
+                    _memory[addr + 2] = (std::uint8_t) (value % 0x100);
+                    value >>= 8;
+                    _memory[addr + 3] = (std::uint8_t) (value % 0x100);
                 } else { // _endianness == BigEndian
-                    _memory[addr + 3] = (std::uint8_t)(value % 0x100); value >>= 8;
-                    _memory[addr + 2] = (std::uint8_t)(value % 0x100); value >>= 8;
-                    _memory[addr + 1] = (std::uint8_t)(value % 0x100); value >>= 8;
-                    _memory[addr + 0] = (std::uint8_t)(value % 0x100);
+                    _memory[addr + 3] = (std::uint8_t) (value % 0x100);
+                    value >>= 8;
+                    _memory[addr + 2] = (std::uint8_t) (value % 0x100);
+                    value >>= 8;
+                    _memory[addr + 1] = (std::uint8_t) (value % 0x100);
+                    value >>= 8;
+                    _memory[addr + 0] = (std::uint8_t) (value % 0x100);
                 }
             }
             fclose(initFile);
@@ -64,12 +72,15 @@ public:
             if (_memory[i].any() || _memory[i + 1].any() || _memory[i + 2].any()
                 || _memory[i + 3].any()) {
                 std::uint32_t value = 0;
-                value += (_memory[i + 3].to_ulong()); value <<= 8;
-                value += (_memory[i + 2].to_ulong()); value <<= 8;
-                value += (_memory[i + 1].to_ulong()); value <<= 8;
+                value += (_memory[i + 3].to_ulong());
+                value <<= 8;
+                value += (_memory[i + 2].to_ulong());
+                value <<= 8;
+                value += (_memory[i + 1].to_ulong());
+                value <<= 8;
                 value += (_memory[i + 0].to_ulong());
                 printf("  memory[0x%08lx..0x%08lx] = 0x%08lx\n", i + 3, i,
-                       (unsigned long)value);
+                       (unsigned long) value);
             }
         }
     }
@@ -109,6 +120,16 @@ public:
         }
     }
 
+    uint32_t getReadData() const {
+        uint32_t readData = 0;
+        for (size_t i = 0; i < 32; ++i) {
+            if (_oReadData->test(i)) {
+                readData |= (1 << i);
+            }
+        }
+        return readData;
+    }
+
     ~Memory() {
         delete[] _memory;
     }
@@ -123,7 +144,6 @@ private:
 
     Endianness _endianness;
     std::bitset<8> *_memory;
-
 };
 
 #endif
