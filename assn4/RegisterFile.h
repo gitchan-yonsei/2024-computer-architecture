@@ -9,6 +9,7 @@
 class RegisterFile : public DigitalCircuit {
 
 public:
+
     RegisterFile(const Wire<5> *iReadRegister1,
                  const Wire<5> *iReadRegister2,
                  const Wire<5> *iWriteRegister,
@@ -40,7 +41,7 @@ public:
             std::uint32_t reg, val;
             while (fscanf(initFile, " %u %x", &reg, &val) == 2) {
                 if (reg != 0) {
-                    printf("INFO: $%02u <-- 0x%08lx\n", reg, (unsigned long) val);
+                    printf("INFO: $%02u <-- 0x%08lx\n", reg, (unsigned long)val);
                     _registers[reg] = val;
                 }
             }
@@ -56,57 +57,25 @@ public:
     }
 
     virtual void advanceCycle() {
-        uint32_t readReg1 = 0;
-        uint32_t readReg2 = 0;
-        uint32_t writeReg = 0;
-        uint32_t writeData = 0;
-        bool regWrite = _iRegWrite->test(0);
+        // READ REGISTERS (RegWrite = 0)
+        // ReadRegister1, ReadRegister2: 값을 읽을 레지스터의 인덱스 -> ReadData1, ReadData2로 읽은 값 반환
+        uint32_t readRegister1 = static_cast<uint32_t>(_iReadRegister1->to_ulong());
+        uint32_t readRegister2 = static_cast<uint32_t>(_iReadRegister2->to_ulong());
+        *_oReadData1 = _registers[readRegister1].to_ulong();
+        *_oReadData2 = _registers[readRegister2].to_ulong();
 
-        // For reading, RegWrite is 0.
-        // iReadRegister1 = $rs
-        // iReadRegister2 = $rt
-        // $rs and $rt are returned to oReadData1 and oReadData2, respectively.
-        _oReadData1->reset();
-        _oReadData2->reset();
-
-        for (size_t i = 0; i < 5; ++i) {
-            if (_iReadRegister1->test(i)) {
-                readReg1 |= (1 << i);
+        // WRITE REGISTERS (RegWrite = 1)
+        // WriteRegister: 값을 쓸 레지스터의 인덱스 -> WriteData로 쓸 값을 전달받음.
+        if (_iRegWrite->test(0)) {
+            uint32_t writeRegister = static_cast<uint32_t>(_iWriteRegister->to_ulong());
+            if (writeRegister != 0) { // $0 레지스터에는 값을 쓸 수 없음
+                _registers[writeRegister] = _iWriteData->to_ulong();
             }
-            if (_iReadRegister2->test(i)) {
-                readReg2 |= (1 << i);
-            }
-            if (_iWriteRegister->test(i)) {
-                writeReg |= (1 << i);
-            }
-        }
-
-        uint32_t readData1 = _registers[readReg1].to_ulong();
-        uint32_t readData2 = _registers[readReg2].to_ulong();
-
-        for (size_t i = 0; i < 32; ++i) {
-            _oReadData1->set(i, (readData1 & (1 << i)) != 0);
-            _oReadData2->set(i, (readData2 & (1 << i)) != 0);
-        }
-        // printf("oReadData1 = 0x%08lx\n", (unsigned long)readData1);
-        // printf("oReadData2 = 0x%08lx\n", (unsigned long)readData2);
-
-        // For writing to a destination register, RegWrite is 1.
-        // Index of the destination register is iWriteRegister.
-        // Value to be written is iWriteData.
-        // No return value exists for writes.
-        // Writing to zero register is ignored.
-        if (regWrite && writeReg != 0) {
-            for (size_t i = 0; i < 32; ++i) {
-                if (_iWriteData->test(i)) {
-                    writeData |= (1 << i);
-                }
-            }
-            _registers[writeReg] = writeData;
         }
     }
 
 private:
+
     const Wire<5> *_iReadRegister1;
     const Wire<5> *_iReadRegister2;
     const Wire<5> *_iWriteRegister;
@@ -116,6 +85,7 @@ private:
     Wire<32> *_oReadData2;
 
     std::bitset<32> _registers[32];
+
 };
 
 #endif
