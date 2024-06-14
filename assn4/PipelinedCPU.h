@@ -86,50 +86,136 @@ class HazardDetectionUnit : public DigitalCircuit {
 
 class PipelinedCPU : public DigitalCircuit {
 
-  public:
+public:
 
     PipelinedCPU(
-      const std::string &name,
-      const std::uint32_t &initialPC,
-      const Memory::Endianness &memoryEndianness,
-      const char *regFileName,
-      const char *instMemFileName,
-      const char *dataMemFileName
+            const std::string &name,
+            const std::uint32_t &initialPC,
+            const Memory::Endianness &memoryEndianness,
+            const char *regFileName,
+            const char *instMemFileName,
+            const char *dataMemFileName
     ) : DigitalCircuit(name) {
-      /* FIXME */
+        _currCycle = 0;
+
+        _PC = initialPC;
+
+        _registerFile =
+                new RegisterFile(&_regFileReadRegister1,   // $rs
+                                 &_regFileReadRegister2,   // $rt
+                                 &_latchEXMEM.regDstIdx,   // Destination register index
+                                 &_muxMemToRegOutput,      // Data to write back to the register
+                                 &_latchMEMWB.ctrlWB.regWrite, // RegWrite control signal
+                                 &_latchIDEX.regFileReadData1, // ReadData1
+                                 &_latchIDEX.regFileReadData2, // ReadData2
+                                 regFileName);
+
+        _instMemory = new Memory("InstructionMemory",
+                                 &_PC,                 // Read address
+                                 nullptr,         // Write data (no writing to instruction memory)
+                                 &_alwaysHi,           // ctrlMemRead (always 1)
+                                 &_alwaysLo,           // ctrlMemWrite (unused)
+                                 &_latchIFID.instruction, // Output read data
+                                 memoryEndianness, // Endianness
+                                 instMemFileName);     // File name
+
+        _dataMemory = new Memory("DataMemory",
+                                 &_latchEXMEM.aluResult, // Read/Write address
+                                 &_latchEXMEM.regFileReadData2, // Write data
+                                 &_latchEXMEM.ctrlMEM.memRead, // MemRead control signal
+                                 &_latchEXMEM.ctrlMEM.memWrite, // MemWrite control signal
+                                 &_muxMemToRegOutput, // Output read data
+                                 memoryEndianness, // Endianness
+                                 dataMemFileName); // File name
+
+        _control = new Control(&_opcode, // Input: instruction opcode
+                               &_latchIDEX.ctrlEX.regDst,   // Output: RegDst control signal
+                               &_latchIDEX.ctrlEX.aluSrc,   // Output: ALUSrc control signal
+                               &_latchMEMWB.ctrlWB.memToReg, // Output: MemToReg control signal
+                               &_latchMEMWB.ctrlWB.regWrite, // Output: RegWrite control signal
+                               &_latchEXMEM.ctrlMEM.memRead, // Output: MemRead control signal
+                               &_latchEXMEM.ctrlMEM.memWrite, // Output: MemWrite control signal
+                               &_latchEXMEM.ctrlMEM.branch,  // Output: Branch control signal
+                               &_latchIDEX.ctrlEX.aluOp);    // Output: ALUOp control signal
+
+        _aluControl = new ALUControl(
+                &_latchIDEX.ctrlEX.aluOp,
+                &_aluControlInput,
+                &_aluControlOutput
+        );
+
+        _alu = new ALU(
+                &_aluControlOutput,
+                &_latchIDEX.regFileReadData1,
+                &_muxALUSrcOutput,
+                &_latchEXMEM.aluResult,
+                &_latchEXMEM.aluZero
+        );
+
+        _muxRegDst = new MUX2<5>(
+                "MUX_RegFileWriteRegister",
+                &_latchIDEX.rt,
+                &_latchIDEX.rd,
+                &_latchIDEX.ctrlEX.regDst,
+                &_latchEXMEM.regDstIdx
+        );
+
+        _muxALUSrc = new MUX2<32>(
+                "MUX_ALUInput1",
+                &_latchIDEX.regFileReadData2,  // $rt
+                &_latchIDEX.signExtImmediate,  // sign-extended imm
+                &_latchIDEX.ctrlEX.aluSrc,     // I-type or R-type
+                &_muxALUSrcOutput              // ALU second input
+        );
+
+        _muxMemToReg = new MUX2<32>(
+                "MUX_RegFileWriteData",
+                &_latchMEMWB.aluResult,
+                &_latchMEMWB.dataMemReadData,
+                &_latchMEMWB.ctrlWB.memToReg,
+                &_muxMemToRegOutput
+        );
+
+        _muxPCSrc = new MUX2<32>(
+                "MUX_PC",
+                &_pcPlus4,
+                &_latchEXMEM.branchTargetAddr,
+                &_muxPCSrcSelect,
+                &_PC
+        );
     }
 
     virtual void advanceCycle() {
-      _currCycle += 1;
+        _currCycle += 1;
 
-      /* FIXME: implement the per-cycle behavior of the five-stage pipelined MIPS CPU */
+        /* FIXME: implement the per-cycle behavior of the five-stage pipelined MIPS CPU */
     }
 
     ~PipelinedCPU() {
-      delete _adderPCPlus4;
-      delete _instMemory;
-      delete _control;
-      delete _registerFile;
-      delete _signExtend;
-      delete _adderBranchTargetAddr;
-      delete _muxALUSrc;
-      delete _aluControl;
-      delete _alu;
-      delete _muxRegDst;
-      delete _muxPCSrc;
-      delete _dataMemory;
-      delete _muxMemToReg;
+        delete _adderPCPlus4;
+        delete _instMemory;
+        delete _control;
+        delete _registerFile;
+        delete _signExtend;
+        delete _adderBranchTargetAddr;
+        delete _muxALUSrc;
+        delete _aluControl;
+        delete _alu;
+        delete _muxRegDst;
+        delete _muxPCSrc;
+        delete _dataMemory;
+        delete _muxMemToReg;
 #ifdef ENABLE_DATA_FORWARDING
-      delete _forwardingUnit;
-      delete _muxForwardA;
-      delete _muxForwardB;
+        delete _forwardingUnit;
+        delete _muxForwardA;
+        delete _muxForwardB;
 #ifdef ENABLE_HAZARD_DETECTION
-      delete _hazDetUnit;
+        delete _hazDetUnit;
 #endif
 #endif
     }
 
-  private:
+private:
 
     // Cycle tracker
     std::uint64_t _currCycle = 0;
@@ -168,51 +254,51 @@ class PipelinedCPU : public DigitalCircuit {
 
     // Latches
     typedef struct {
-      Register<1> regDst;
-      Register<2> aluOp;
-      Register<1> aluSrc;
+        Register<1> regDst;
+        Register<2> aluOp;
+        Register<1> aluSrc;
     } ControlEX_t; // the control signals for the EX stage
     typedef struct {
-      Register<1> branch;
-      Register<1> memRead;
-      Register<1> memWrite;
+        Register<1> branch;
+        Register<1> memRead;
+        Register<1> memWrite;
     } ControlMEM_t; // the control signals for the MEM stage
     typedef struct {
-      Register<1> memToReg;
-      Register<1> regWrite;
+        Register<1> memToReg;
+        Register<1> regWrite;
     } ControlWB_t; // the control signals for the WB stage
     struct {
-      Register<32> pcPlus4; // PC+4
-      Register<32> instruction; // 32-bit instruction
+        Register<32> pcPlus4; // PC+4
+        Register<32> instruction; // 32-bit instruction
     } _latchIFID = {}; // the IF-ID latch
     struct {
-      ControlWB_t ctrlWB; // the control signals for the WB stage
-      ControlMEM_t ctrlMEM; // the control signals for the MEM stage
-      ControlEX_t ctrlEX; // the control signals for the EX stage
-      Register<32> pcPlus4; // PC+4
-      Register<32> regFileReadData1; // 'ReadData1' from the register file
-      Register<32> regFileReadData2; // 'ReadData2' from the register file
-      Register<32> signExtImmediate; // the 32-bit sign-extended immediate value
+        ControlWB_t ctrlWB; // the control signals for the WB stage
+        ControlMEM_t ctrlMEM; // the control signals for the MEM stage
+        ControlEX_t ctrlEX; // the control signals for the EX stage
+        Register<32> pcPlus4; // PC+4
+        Register<32> regFileReadData1; // 'ReadData1' from the register file
+        Register<32> regFileReadData2; // 'ReadData2' from the register file
+        Register<32> signExtImmediate; // the 32-bit sign-extended immediate value
 #ifdef ENABLE_DATA_FORWARDING
-      Register<5> rs; // the 5-bit 'rs' field
+        Register<5> rs; // the 5-bit 'rs' field
 #endif
-      Register<5> rt; // the 5-bit 'rt' field
-      Register<5> rd; // the 5-bit 'rd' field
+        Register<5> rt; // the 5-bit 'rt' field
+        Register<5> rd; // the 5-bit 'rd' field
     } _latchIDEX = {}; // the ID-EX latch
     struct {
-      ControlWB_t ctrlWB; // the control signals for the WB stage
-      ControlMEM_t ctrlMEM; // the control signals for the MEM stage
-      Register<32> branchTargetAddr; // the 32-bit branch target address
-      Register<1> aluZero; // 'Zero' from the ALU
-      Register<32> aluResult; // the 32-bit ALU output
-      Register<32> regFileReadData2; // 'ReadData2' from the register file
-      Register<5> regDstIdx; // the index of the destination register
+        ControlWB_t ctrlWB; // the control signals for the WB stage
+        ControlMEM_t ctrlMEM; // the control signals for the MEM stage
+        Register<32> branchTargetAddr; // the 32-bit branch target address
+        Register<1> aluZero; // 'Zero' from the ALU
+        Register<32> aluResult; // the 32-bit ALU output
+        Register<32> regFileReadData2; // 'ReadData2' from the register file
+        Register<5> regDstIdx; // the index of the destination register
     } _latchEXMEM = {}; // the EX-MEM latch
     struct {
-      ControlWB_t ctrlWB; // the control signals for the WB stage
-      Register<32> dataMemReadData; // the 32-bit data read from the data memory
-      Register<32> aluResult; // the 32-bit ALU output
-      Register<5> regDstIdx; // the index of the destination register
+        ControlWB_t ctrlWB; // the control signals for the WB stage
+        Register<32> dataMemReadData; // the 32-bit data read from the data memory
+        Register<32> aluResult; // the 32-bit ALU output
+        Register<5> regDstIdx; // the index of the destination register
     } _latchMEMWB = {}; // the MEM-WB latch
 
     // Wires
@@ -238,58 +324,57 @@ class PipelinedCPU : public DigitalCircuit {
 #endif
 #endif
 
-  public:
+public:
 
     void printPVS() {
-      printf("==================== Cycle %lu ====================\n", _currCycle);
-      printf("PC = 0x%08lx\n", _PC.to_ulong());
-      printf("Registers:\n");
-      _registerFile->printRegisters();
-      printf("Data Memory:\n");
-      _dataMemory->printMemory();
-      printf("Instruction Memory:\n");
-      _instMemory->printMemory();
-      printf("Latches:\n");
-      printf("  IF-ID Latch:\n");
-      printf("    pcPlus4          = 0x%08lx\n", _latchIFID.pcPlus4.to_ulong());
-      printf("    instruction      = 0x%08lx\n", _latchIFID.instruction.to_ulong());
-      printf("  ID-EX Latch:\n");
-      printf("    ctrlWBMemToReg   = 0b%s\n", _latchIDEX.ctrlWB.memToReg.to_string().c_str());
-      printf("    ctrlWBRegWrite   = 0b%s\n", _latchIDEX.ctrlWB.regWrite.to_string().c_str());
-      printf("    ctrlMEMBranch    = 0b%s\n", _latchIDEX.ctrlMEM.branch.to_string().c_str());
-      printf("    ctrlMEMMemRead   = 0b%s\n", _latchIDEX.ctrlMEM.memRead.to_string().c_str());
-      printf("    ctrlMEMMemWrite  = 0b%s\n", _latchIDEX.ctrlMEM.memWrite.to_string().c_str());
-      printf("    ctrlEXRegDst     = 0b%s\n", _latchIDEX.ctrlEX.regDst.to_string().c_str());
-      printf("    ctrlEXALUOp      = 0b%s\n", _latchIDEX.ctrlEX.aluOp.to_string().c_str());
-      printf("    ctrlEXALUSrc     = 0b%s\n", _latchIDEX.ctrlEX.aluSrc.to_string().c_str());
-      printf("    pcPlus4          = 0x%08lx\n", _latchIDEX.pcPlus4.to_ulong());
-      printf("    regFileReadData1 = 0x%08lx\n", _latchIDEX.regFileReadData1.to_ulong());
-      printf("    regFileReadData2 = 0x%08lx\n", _latchIDEX.regFileReadData2.to_ulong());
-      printf("    signExtImmediate = 0x%08lx\n", _latchIDEX.signExtImmediate.to_ulong());
+        printf("==================== Cycle %lu ====================\n", _currCycle);
+        printf("PC = 0x%08lx\n", _PC.to_ulong());
+        printf("Registers:\n");
+        _registerFile->printRegisters();
+        printf("Data Memory:\n");
+        _dataMemory->printMemory();
+        printf("Instruction Memory:\n");
+        _instMemory->printMemory();
+        printf("Latches:\n");
+        printf("  IF-ID Latch:\n");
+        printf("    pcPlus4          = 0x%08lx\n", _latchIFID.pcPlus4.to_ulong());
+        printf("    instruction      = 0x%08lx\n", _latchIFID.instruction.to_ulong());
+        printf("  ID-EX Latch:\n");
+        printf("    ctrlWBMemToReg   = 0b%s\n", _latchIDEX.ctrlWB.memToReg.to_string().c_str());
+        printf("    ctrlWBRegWrite   = 0b%s\n", _latchIDEX.ctrlWB.regWrite.to_string().c_str());
+        printf("    ctrlMEMBranch    = 0b%s\n", _latchIDEX.ctrlMEM.branch.to_string().c_str());
+        printf("    ctrlMEMMemRead   = 0b%s\n", _latchIDEX.ctrlMEM.memRead.to_string().c_str());
+        printf("    ctrlMEMMemWrite  = 0b%s\n", _latchIDEX.ctrlMEM.memWrite.to_string().c_str());
+        printf("    ctrlEXRegDst     = 0b%s\n", _latchIDEX.ctrlEX.regDst.to_string().c_str());
+        printf("    ctrlEXALUOp      = 0b%s\n", _latchIDEX.ctrlEX.aluOp.to_string().c_str());
+        printf("    ctrlEXALUSrc     = 0b%s\n", _latchIDEX.ctrlEX.aluSrc.to_string().c_str());
+        printf("    pcPlus4          = 0x%08lx\n", _latchIDEX.pcPlus4.to_ulong());
+        printf("    regFileReadData1 = 0x%08lx\n", _latchIDEX.regFileReadData1.to_ulong());
+        printf("    regFileReadData2 = 0x%08lx\n", _latchIDEX.regFileReadData2.to_ulong());
+        printf("    signExtImmediate = 0x%08lx\n", _latchIDEX.signExtImmediate.to_ulong());
 #ifdef ENABLE_DATA_FORWARDING
-      printf("    rs               = 0b%s\n", _latchIDEX.rs.to_string().c_str());
+        printf("    rs               = 0b%s\n", _latchIDEX.rs.to_string().c_str());
 #endif
-      printf("    rt               = 0b%s\n", _latchIDEX.rt.to_string().c_str());
-      printf("    rd               = 0b%s\n", _latchIDEX.rd.to_string().c_str());
-      printf("  EX-MEM Latch:\n"); 
-      printf("    ctrlWBMemToReg   = 0b%s\n", _latchEXMEM.ctrlWB.memToReg.to_string().c_str());
-      printf("    ctrlWBRegWrite   = 0b%s\n", _latchEXMEM.ctrlWB.regWrite.to_string().c_str());
-      printf("    ctrlMEMBranch    = 0b%s\n", _latchEXMEM.ctrlMEM.branch.to_string().c_str());
-      printf("    ctrlMEMMemRead   = 0b%s\n", _latchEXMEM.ctrlMEM.memRead.to_string().c_str());
-      printf("    ctrlMEMMemWrite  = 0b%s\n", _latchEXMEM.ctrlMEM.memWrite.to_string().c_str());
-      printf("    branchTargetAddr = 0x%08lx\n", _latchEXMEM.branchTargetAddr.to_ulong());
-      printf("    aluZero          = 0b%s\n", _latchEXMEM.aluZero.to_string().c_str());
-      printf("    aluResult        = 0x%08lx\n", _latchEXMEM.aluResult.to_ulong());
-      printf("    regFileReadData2 = 0x%08lx\n", _latchEXMEM.regFileReadData2.to_ulong());
-      printf("    regDstIdx        = 0b%s\n", _latchEXMEM.regDstIdx.to_string().c_str());
-      printf("  MEM-WB Latch:\n"); 
-      printf("    ctrlWBMemToReg   = 0b%s\n", _latchMEMWB.ctrlWB.memToReg.to_string().c_str());
-      printf("    ctrlWBRegWrite   = 0b%s\n", _latchMEMWB.ctrlWB.regWrite.to_string().c_str());
-      printf("    dataMemReadData  = 0x%08lx\n", _latchMEMWB.dataMemReadData.to_ulong());
-      printf("    aluResult        = 0x%08lx\n", _latchMEMWB.aluResult.to_ulong());
-      printf("    regDstIdx        = 0b%s\n", _latchMEMWB.regDstIdx.to_string().c_str());
+        printf("    rt               = 0b%s\n", _latchIDEX.rt.to_string().c_str());
+        printf("    rd               = 0b%s\n", _latchIDEX.rd.to_string().c_str());
+        printf("  EX-MEM Latch:\n");
+        printf("    ctrlWBMemToReg   = 0b%s\n", _latchEXMEM.ctrlWB.memToReg.to_string().c_str());
+        printf("    ctrlWBRegWrite   = 0b%s\n", _latchEXMEM.ctrlWB.regWrite.to_string().c_str());
+        printf("    ctrlMEMBranch    = 0b%s\n", _latchEXMEM.ctrlMEM.branch.to_string().c_str());
+        printf("    ctrlMEMMemRead   = 0b%s\n", _latchEXMEM.ctrlMEM.memRead.to_string().c_str());
+        printf("    ctrlMEMMemWrite  = 0b%s\n", _latchEXMEM.ctrlMEM.memWrite.to_string().c_str());
+        printf("    branchTargetAddr = 0x%08lx\n", _latchEXMEM.branchTargetAddr.to_ulong());
+        printf("    aluZero          = 0b%s\n", _latchEXMEM.aluZero.to_string().c_str());
+        printf("    aluResult        = 0x%08lx\n", _latchEXMEM.aluResult.to_ulong());
+        printf("    regFileReadData2 = 0x%08lx\n", _latchEXMEM.regFileReadData2.to_ulong());
+        printf("    regDstIdx        = 0b%s\n", _latchEXMEM.regDstIdx.to_string().c_str());
+        printf("  MEM-WB Latch:\n");
+        printf("    ctrlWBMemToReg   = 0b%s\n", _latchMEMWB.ctrlWB.memToReg.to_string().c_str());
+        printf("    ctrlWBRegWrite   = 0b%s\n", _latchMEMWB.ctrlWB.regWrite.to_string().c_str());
+        printf("    dataMemReadData  = 0x%08lx\n", _latchMEMWB.dataMemReadData.to_ulong());
+        printf("    aluResult        = 0x%08lx\n", _latchMEMWB.aluResult.to_ulong());
+        printf("    regDstIdx        = 0b%s\n", _latchMEMWB.regDstIdx.to_string().c_str());
     }
-
 };
 
 #endif
