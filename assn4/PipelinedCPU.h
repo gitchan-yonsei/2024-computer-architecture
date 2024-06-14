@@ -127,6 +127,62 @@ public:
                                  &_muxMemToRegOutput, // Output read data
                                  memoryEndianness, // Endianness
                                  dataMemFileName); // File name
+
+        _control = new Control(&_opcode, // Input: instruction opcode
+                               &_latchIDEX.ctrlEX.regDst,   // Output: RegDst control signal
+                               &_latchIDEX.ctrlEX.aluSrc,   // Output: ALUSrc control signal
+                               &_latchMEMWB.ctrlWB.memToReg, // Output: MemToReg control signal
+                               &_latchMEMWB.ctrlWB.regWrite, // Output: RegWrite control signal
+                               &_latchEXMEM.ctrlMEM.memRead, // Output: MemRead control signal
+                               &_latchEXMEM.ctrlMEM.memWrite, // Output: MemWrite control signal
+                               &_latchEXMEM.ctrlMEM.branch,  // Output: Branch control signal
+                               &_latchIDEX.ctrlEX.aluOp);    // Output: ALUOp control signal
+
+        _aluControl = new ALUControl(
+                &_latchIDEX.ctrlEX.aluOp,
+                &_aluControlInput,
+                &_aluControlOutput
+        );
+
+        _alu = new ALU(
+                &_aluControlOutput,
+                &_latchIDEX.regFileReadData1,
+                &_muxALUSrcOutput,
+                &_latchEXMEM.aluResult,
+                &_latchEXMEM.aluZero
+        );
+
+        _muxRegDst = new MUX2<5>(
+                "MUX_RegFileWriteRegister",
+                &_latchIDEX.rt,
+                &_latchIDEX.rd,
+                &_latchIDEX.ctrlEX.regDst,
+                &_latchEXMEM.regDstIdx
+        );
+
+        _muxALUSrc = new MUX2<32>(
+                "MUX_ALUInput1",
+                &_latchIDEX.regFileReadData2,  // $rt
+                &_latchIDEX.signExtImmediate,  // sign-extended imm
+                &_latchIDEX.ctrlEX.aluSrc,     // I-type or R-type
+                &_muxALUSrcOutput              // ALU second input
+        );
+
+        _muxMemToReg = new MUX2<32>(
+                "MUX_RegFileWriteData",
+                &_latchMEMWB.aluResult,
+                &_latchMEMWB.dataMemReadData,
+                &_latchMEMWB.ctrlWB.memToReg,
+                &_muxMemToRegOutput
+        );
+
+        _muxPCSrc = new MUX2<32>(
+                "MUX_PC",
+                &_pcPlus4,
+                &_latchEXMEM.branchTargetAddr,
+                &_muxPCSrcSelect,
+                &_PC
+        );
     }
 
     virtual void advanceCycle() {
