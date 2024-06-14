@@ -118,6 +118,15 @@ public:
                                  &_latchIFID.instruction, // Output read data
                                  memoryEndianness, // Endianness
                                  instMemFileName);     // File name
+
+        _dataMemory = new Memory("DataMemory",
+                                 &_latchEXMEM.aluResult, // Read/Write address
+                                 &_latchEXMEM.regFileReadData2, // Write data
+                                 &_latchEXMEM.ctrlMEM.memRead, // MemRead control signal
+                                 &_latchEXMEM.ctrlMEM.memWrite, // MemWrite control signal
+                                 &_muxMemToRegOutput, // Output read data
+                                 memoryEndianness, // Endianness
+                                 dataMemFileName); // File name
     }
 
     virtual void advanceCycle() {
