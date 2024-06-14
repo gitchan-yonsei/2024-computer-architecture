@@ -189,6 +189,50 @@ public:
         _currCycle += 1;
 
         /* FIXME: implement the per-cycle behavior of the five-stage pipelined MIPS CPU */
+
+        // Instruction Fetch (IF) Stage
+        _instMemory->advanceCycle();
+        _latchIFID.pcPlus4 = _PC.to_ulong() + 4;
+        _latchIFID.instruction = _instMemory->getReadData();
+
+        _PC = _latchIFID.pcPlus4;
+
+        // Instruction Decode (ID) Stage
+
+        // 1. IF/ID 래치에서 instruction을 가져온다.
+        uint32_t instruction = _latchIFID.instruction.to_ulong();
+
+        // 2. decode를 한다.
+        _control->advanceCycle();
+        _registerFile->advanceCycle();
+
+        // 3. 레지스터로 분류한 내용들을 ID/EXE 래치에 저장한다.
+        _latchIDEX.pcPlus4 = _latchIFID.pcPlus4;
+        _latchIDEX.regFileReadData1 = _registerFile->getReadData1();
+        _latchIDEX.regFileReadData2 = _registerFile->getReadData2();
+
+        // Sign-extend the immediate value
+        uint32_t immediate = instruction & 0xFFFF;
+        _latchIDEX.signExtImmediate = (immediate & 0x8000) ? (immediate | 0xFFFF0000) : immediate;;
+
+        // Extract rs, rt, rd fields
+#ifdef ENABLE_DATA_FORWARDING
+        _latchIDEX.rs = (instruction >> 21) & 0x1F;
+#endif
+        _latchIDEX.rt = (instruction >> 16) & 0x1F;
+        _latchIDEX.rd = (instruction >> 11) & 0x1F;
+
+        // Control signals 개별적으로 가져오기
+        _latchIDEX.ctrlEX.regDst = _control->getRegDst();
+        _latchIDEX.ctrlEX.aluSrc = _control->getALUSrc();
+        _latchIDEX.ctrlEX.aluOp = _control->getALUOp();
+
+        _latchIDEX.ctrlMEM.memRead = _control->getMemRead();
+        _latchIDEX.ctrlMEM.memWrite = _control->getMemWrite();
+        _latchIDEX.ctrlMEM.branch = _control->getBranch();
+
+        _latchIDEX.ctrlWB.regWrite = _control->getRegWrite();
+        _latchIDEX.ctrlWB.memToReg = _control->getMemToReg();
     }
 
     ~PipelinedCPU() {

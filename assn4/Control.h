@@ -3,23 +3,6 @@
 
 #include "DigitalCircuit.h"
 
-struct ControlEX_t {
-    bool regDst;
-    bool aluSrc;
-    uint8_t aluOp;
-};
-
-struct ControlMEM_t {
-    bool memRead;
-    bool memWrite;
-    bool branch;
-};
-
-struct ControlWB_t {
-    bool regWrite;
-    bool memToReg;
-};
-
 class Control : public DigitalCircuit {
 
 public:
@@ -138,27 +121,36 @@ public:
         }
     }
 
-    ControlEX_t getEXControls() const {
-        ControlEX_t ctrlEX;
-        ctrlEX.regDst = _oRegDst->test(0);
-        ctrlEX.aluSrc = _oALUSrc->test(0);
-        ctrlEX.aluOp = static_cast<uint8_t>(_oALUOp->to_ulong());
-        return ctrlEX;
+    bool getRegDst() const {
+        return _oRegDst->test(0);
     }
 
-    ControlMEM_t getMEMControls() const {
-        ControlMEM_t ctrlMEM;
-        ctrlMEM.memRead = _oMemRead->test(0);
-        ctrlMEM.memWrite = _oMemWrite->test(0);
-        ctrlMEM.branch = _oBranch->test(0);
-        return ctrlMEM;
+    bool getALUSrc() const {
+        return _oALUSrc->test(0);
     }
 
-    ControlWB_t getWBControls() const {
-        ControlWB_t ctrlWB;
-        ctrlWB.regWrite = _oRegWrite->test(0);
-        ctrlWB.memToReg = _oMemToReg->test(0);
-        return ctrlWB;
+    uint8_t getALUOp() const {
+        return static_cast<uint8_t>(_oALUOp->to_ulong());
+    }
+
+    bool getMemToReg() const {
+        return _oMemToReg->test(0);
+    }
+
+    bool getRegWrite() const {
+        return _oRegWrite->test(0);
+    }
+
+    bool getMemRead() const {
+        return _oMemRead->test(0);
+    }
+
+    bool getMemWrite() const {
+        return _oMemWrite->test(0);
+    }
+
+    bool getBranch() const {
+        return _oBranch->test(0);
     }
 
 private:
