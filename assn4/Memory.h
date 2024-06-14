@@ -120,16 +120,6 @@ public:
         }
     }
 
-    uint32_t getReadData() const {
-        uint32_t readData = 0;
-        for (size_t i = 0; i < 32; ++i) {
-            if (_oReadData->test(i)) {
-                readData |= (1 << i);
-            }
-        }
-        return readData;
-    }
-
     ~Memory() {
         delete[] _memory;
     }

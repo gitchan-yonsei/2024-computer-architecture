@@ -67,14 +67,6 @@ public:
         *_oZero = std::bitset<1>(output == 0);
     }
 
-    uint32_t getResult() const {
-        return _oOutput->to_ulong();
-    }
-
-    bool getZero() const {
-        return _oZero->test(0);
-    }
-
 private:
 
     const Wire<4> *_iALUControl;

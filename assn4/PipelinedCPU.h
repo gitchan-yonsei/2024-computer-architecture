@@ -96,47 +96,53 @@ public:
             const char *instMemFileName,
             const char *dataMemFileName
     ) : DigitalCircuit(name) {
-        _currCycle = 0;
-
         _PC = initialPC;
 
         _registerFile =
-                new RegisterFile(&_regFileReadRegister1,   // $rs
-                                 &_regFileReadRegister2,   // $rt
-                                 &_latchEXMEM.regDstIdx,   // Destination register index
-                                 &_muxMemToRegOutput,      // Data to write back to the register
-                                 &_latchMEMWB.ctrlWB.regWrite, // RegWrite control signal
-                                 &_latchIDEX.regFileReadData1, // ReadData1
-                                 &_latchIDEX.regFileReadData2, // ReadData2
-                                 regFileName);
+                new RegisterFile(
+                        &_regFileReadRegister1,   // $rs
+                        &_regFileReadRegister2,   // $rt
+                        &_latchEXMEM.regDstIdx,   // Destination register index
+                        &_muxMemToRegOutput,      // Data to write back to the register
+                        &_latchMEMWB.ctrlWB.regWrite, // RegWrite control signal
+                        &_latchIDEX.regFileReadData1, // ReadData1
+                        &_latchIDEX.regFileReadData2, // ReadData2
+                        regFileName
+                );
 
-        _instMemory = new Memory("InstructionMemory",
-                                 &_PC,                 // Read address
-                                 nullptr,         // Write data (no writing to instruction memory)
-                                 &_alwaysHi,           // ctrlMemRead (always 1)
-                                 &_alwaysLo,           // ctrlMemWrite (unused)
-                                 &_latchIFID.instruction, // Output read data
-                                 memoryEndianness, // Endianness
-                                 instMemFileName);     // File name
+        _instMemory = new Memory(
+                "InstructionMemory",
+                &_PC,                 // Read address
+                &_muxMemToRegOutput,         // Write data (no writing to instruction memory)
+                &_alwaysHi,           // ctrlMemRead (always 1)
+                &_alwaysLo,           // ctrlMemWrite (unused)
+                &_latchIFID.instruction, // Output read data
+                memoryEndianness, // Endianness
+                instMemFileName
+        );     // File name
 
-        _dataMemory = new Memory("DataMemory",
-                                 &_latchEXMEM.aluResult, // Read/Write address
-                                 &_latchEXMEM.regFileReadData2, // Write data
-                                 &_latchEXMEM.ctrlMEM.memRead, // MemRead control signal
-                                 &_latchEXMEM.ctrlMEM.memWrite, // MemWrite control signal
-                                 &_muxMemToRegOutput, // Output read data
-                                 memoryEndianness, // Endianness
-                                 dataMemFileName); // File name
+        _dataMemory = new Memory(
+                "DataMemory",
+                &_latchEXMEM.aluResult, // Read/Write address
+                &_latchEXMEM.regFileReadData2, // Write data
+                &_latchEXMEM.ctrlMEM.memRead, // MemRead control signal
+                &_latchEXMEM.ctrlMEM.memWrite, // MemWrite control signal
+                &_muxMemToRegOutput, // Output read data
+                memoryEndianness, // Endianness
+                dataMemFileName
+        ); // File name
 
-        _control = new Control(&_opcode, // Input: instruction opcode
-                               &_latchIDEX.ctrlEX.regDst,   // Output: RegDst control signal
-                               &_latchIDEX.ctrlEX.aluSrc,   // Output: ALUSrc control signal
-                               &_latchMEMWB.ctrlWB.memToReg, // Output: MemToReg control signal
-                               &_latchMEMWB.ctrlWB.regWrite, // Output: RegWrite control signal
-                               &_latchEXMEM.ctrlMEM.memRead, // Output: MemRead control signal
-                               &_latchEXMEM.ctrlMEM.memWrite, // Output: MemWrite control signal
-                               &_latchEXMEM.ctrlMEM.branch,  // Output: Branch control signal
-                               &_latchIDEX.ctrlEX.aluOp);    // Output: ALUOp control signal
+        _control = new Control(
+                &_opcode, // Input: instruction opcode
+                &_latchIDEX.ctrlEX.regDst,   // Output: RegDst control signal
+                &_latchIDEX.ctrlEX.aluSrc,   // Output: ALUSrc control signal
+                &_latchMEMWB.ctrlWB.memToReg, // Output: MemToReg control signal
+                &_latchMEMWB.ctrlWB.regWrite, // Output: RegWrite control signal
+                &_latchEXMEM.ctrlMEM.memRead, // Output: MemRead control signal
+                &_latchEXMEM.ctrlMEM.memWrite, // Output: MemWrite control signal
+                &_latchEXMEM.ctrlMEM.branch,  // Output: Branch control signal
+                &_latchIDEX.ctrlEX.aluOp
+        );    // Output: ALUOp control signal
 
         _aluControl = new ALUControl(
                 &_latchIDEX.ctrlEX.aluOp,
@@ -183,20 +189,103 @@ public:
                 &_muxPCSrcSelect,
                 &_PC
         );
+
+        _adderPCPlus4 = new Adder<32>(
+                "PCPlus4",
+                &_PC,
+                &_adderPCPlus4Input1,
+                &_pcPlus4
+        );
     }
 
     virtual void advanceCycle() {
         _currCycle += 1;
 
-        // Instruction Fetch (IF) Stage
-        _instMemory->advanceCycle();
-        _latchIFID.pcPlus4 = _PC.to_ulong() + 4;
-        _latchIFID.instruction = _instMemory->getReadData();
+        // Write Back (WB) Stage
+        // 1. MEM/WB 래치에서 데이터를 가져온다.
+        printf("pc WB = 0x%08lx\n", _PC);
+        Register<32> aluResult = _latchMEMWB.aluResult.to_ulong();
+        uint32_t dataMemReadData = _latchMEMWB.dataMemReadData.to_ulong();
+        bool memToReg = _latchMEMWB.ctrlWB.memToReg.to_ulong();
+        bool regWrite = _latchMEMWB.ctrlWB.regWrite.to_ulong();
+        uint32_t regDstIdx = _latchMEMWB.regDstIdx.to_ulong();
 
-        _PC = _latchIFID.pcPlus4;
+        // 2. WB을 수행한다.
+        if (regWrite) {
+            Register<32> writeData = memToReg ? dataMemReadData : aluResult;
+            _registerFile->writeRegister(regDstIdx, writeData);
+        }
+
+        // 3. PC를 업데이트한다. (mux에 따라서)
+        _muxALUSrcOutput = _latchIFID.pcPlus4.to_ulong(); // PC + 4
+        _aluControlInput = _latchEXMEM.branchTargetAddr.to_ulong(); // Branch Target Address
+        _muxPCSrcSelect = (_latchEXMEM.ctrlMEM.branch.test(0) & _latchEXMEM.aluZero.test(0)) ? 1 : 0;
+        _muxPCSrc->advanceCycle();
+
+
+
+
+
+        // Memory Access (MEM) Stage
+        printf("pc MEM = 0x%08lx\n", _PC);
+        // 1. EX/MEM 래치에서 데이터를 가져온다.
+        aluResult = _latchEXMEM.aluResult.to_ulong();
+        uint32_t regFileReadData2 = _latchEXMEM.regFileReadData2.to_ulong();
+//        bool memRead = _latchEXMEM.ctrlMEM.memRead.to_ulong();
+//        bool memWrite = _latchEXMEM.ctrlMEM.memWrite.to_ulong();
+//        bool branch = _latchEXMEM.ctrlMEM.branch.to_ulong();
+//        bool aluZero = _latchEXMEM.aluZero.to_ulong();
+
+        // 2. MEM 단계를 실행한다.
+        _dataMemory->advanceCycle();
+
+        // 3. MEM/WB 래치에 저장한다.
+//        if (memRead) {
+//            _latchMEMWB.dataMemReadData = _dataMemory->getReadData();
+//        } else {
+//            _latchMEMWB.dataMemReadData = 0;
+//        }
+//        _latchMEMWB.aluResult = _latchEXMEM.aluResult;
+//        _latchMEMWB.regDstIdx = _latchEXMEM.regDstIdx;
+//
+//        _latchMEMWB.ctrlWB = _latchEXMEM.ctrlWB;
+
+
+
+        // Execute (EXE) Stage
+        printf("pc EXE = 0x%08lx\n", _PC);
+        // 1. ID 스테이지에서 ID/EXE 래치에 넣어놓은 내용 가져오기
+        uint32_t regFileReadData1 = _latchIDEX.regFileReadData1.to_ulong();
+        regFileReadData2 = _latchIDEX.regFileReadData2.to_ulong();
+        uint32_t signExtImmediate = _latchIDEX.signExtImmediate.to_ulong();
+        uint8_t aluOp = _latchIDEX.ctrlEX.aluOp.to_ulong();
+        Register<1> aluSrc = _latchIDEX.ctrlEX.aluSrc;
+        Register<1> regDst = _latchIDEX.ctrlEX.regDst;
+
+        // ALU의 두 번째 입력을 결정하는 MUX
+        uint32_t aluInput1 = aluSrc.to_ulong() ? signExtImmediate : regFileReadData2;
+
+        // 2. ALU Control 신호에 따라서 ALU 돌리기
+        _aluControlInput = signExtImmediate & 0x3F; // funct 필드
+        _aluControl->advanceCycle();
+        _alu->advanceCycle();
+
+        _latchEXMEM.branchTargetAddr = _latchIDEX.pcPlus4.to_ulong() + (_latchIDEX.signExtImmediate.to_ulong() << 2);
+
+        // EX/MEM 래치에 데이터 저장
+        _latchEXMEM.branchTargetAddr = _latchIDEX.pcPlus4.to_ulong() + (signExtImmediate << 2);
+        _latchEXMEM.regFileReadData2 = regFileReadData2;
+        _latchEXMEM.regDstIdx = regDst.to_ulong() ? _latchIDEX.rd : _latchIDEX.rt;
+
+        _latchEXMEM.ctrlWB = _latchIDEX.ctrlWB;
+        _latchEXMEM.ctrlMEM = _latchIDEX.ctrlMEM;
+
+        // Branch 결정 및 주소 계산
+        Register<32> _branchTargetAddr = _latchEXMEM.branchTargetAddr;
+        _muxPCSrcSelect = _latchEXMEM.ctrlMEM.branch.to_ulong() && _latchEXMEM.aluZero.to_ulong();
 
         // Instruction Decode (ID) Stage
-
+        printf("pc ID = 0x%08lx\n", _PC);
         // 1. IF/ID 래치에서 instruction을 가져온다.
         uint32_t instruction = _latchIFID.instruction.to_ulong();
 
@@ -220,102 +309,16 @@ public:
         _latchIDEX.rt = (instruction >> 16) & 0x1F;
         _latchIDEX.rd = (instruction >> 11) & 0x1F;
 
-        // Control signals 개별적으로 가져오기
-        _latchIDEX.ctrlEX.regDst = _control->getRegDst();
-        _latchIDEX.ctrlEX.aluSrc = _control->getALUSrc();
-        _latchIDEX.ctrlEX.aluOp = _control->getALUOp();
+        // Instruction Fetch (IF) Stage
+        printf("pc IF = 0x%08lx\n", _PC);
 
-        _latchIDEX.ctrlMEM.memRead = _control->getMemRead();
-        _latchIDEX.ctrlMEM.memWrite = _control->getMemWrite();
-        _latchIDEX.ctrlMEM.branch = _control->getBranch();
+        _adderPCPlus4->advanceCycle();
+        _instMemory->advanceCycle();
+        printf("Instruction at IF: 0x%08lx\n", _latchIFID.instruction.to_ulong());
 
-        _latchIDEX.ctrlWB.regWrite = _control->getRegWrite();
-        _latchIDEX.ctrlWB.memToReg = _control->getMemToReg();
+        _latchIDEX.pcPlus4 = _pcPlus4;
 
-        // Execute (EXE) Stage
-
-        // 1. ID 스테이지에서 ID/EXE 래치에 넣어놓은 내용 가져오기
-        uint32_t regFileReadData1 = _latchIDEX.regFileReadData1.to_ulong();
-        uint32_t regFileReadData2 = _latchIDEX.regFileReadData2.to_ulong();
-        uint32_t signExtImmediate = _latchIDEX.signExtImmediate.to_ulong();
-        uint8_t aluOp = _latchIDEX.ctrlEX.aluOp.to_ulong();
-        Register<1> aluSrc = _latchIDEX.ctrlEX.aluSrc;
-        Register<1> regDst = _latchIDEX.ctrlEX.regDst;
-
-        // ALU의 두 번째 입력을 결정하는 MUX
-        uint32_t aluInput1 = aluSrc.to_ulong() ? signExtImmediate : regFileReadData2;
-
-        // 2. ALU Control 신호에 따라서 ALU 돌리기
-        _aluControlInput = signExtImmediate & 0x3F; // funct 필드
-        _aluControl->advanceCycle();
-        _alu->advanceCycle();
-
-        _latchEXMEM.branchTargetAddr = _latchIDEX.pcPlus4.to_ulong() + (_latchIDEX.signExtImmediate.to_ulong() << 2);
-        _latchEXMEM.aluResult = _alu->getResult();
-        _latchEXMEM.aluZero = _alu->getZero();
-
-        // EX/MEM 래치에 데이터 저장
-        _latchEXMEM.aluResult = _alu->getResult();
-        _latchEXMEM.aluZero = _alu->getZero();
-        _latchEXMEM.branchTargetAddr = _latchIDEX.pcPlus4.to_ulong() + (signExtImmediate << 2);
-        _latchEXMEM.regFileReadData2 = regFileReadData2;
-        _latchEXMEM.regDstIdx = regDst.to_ulong() ? _latchIDEX.rd : _latchIDEX.rt;
-
-        _latchEXMEM.ctrlWB = _latchIDEX.ctrlWB;
-        _latchEXMEM.ctrlMEM = _latchIDEX.ctrlMEM;
-
-        // Branch 결정 및 주소 계산
-        Register<32> _branchTargetAddr = _latchEXMEM.branchTargetAddr;
-        _muxPCSrcSelect = _latchEXMEM.ctrlMEM.branch.to_ulong() && _latchEXMEM.aluZero.to_ulong();
-
-        // Memory Access (MEM) Stage
-
-        // 1. EX/MEM 래치에서 데이터를 가져온다.
-        uint32_t aluResult = _latchEXMEM.aluResult.to_ulong();
-        regFileReadData2 = _latchEXMEM.regFileReadData2.to_ulong();
-        bool memRead = _latchEXMEM.ctrlMEM.memRead.to_ulong();
-        bool memWrite = _latchEXMEM.ctrlMEM.memWrite.to_ulong();
-        bool branch = _latchEXMEM.ctrlMEM.branch.to_ulong();
-        bool aluZero = _latchEXMEM.aluZero.to_ulong();
-
-        // 2. MEM 단계를 실행한다.
-        _dataMemory->advanceCycle();
-
-        // 3. MEM/WB 래치에 저장한다.
-        if (memRead) {
-            _latchMEMWB.dataMemReadData = _dataMemory->getReadData();
-        } else {
-            _latchMEMWB.dataMemReadData = 0;
-        }
-        _latchMEMWB.aluResult = _latchEXMEM.aluResult;
-        _latchMEMWB.regDstIdx = _latchEXMEM.regDstIdx;
-
-        _latchMEMWB.ctrlWB = _latchEXMEM.ctrlWB;
-
-        // Write Back (WB) Stage
-
-        // 1. MEM/WB 래치에서 데이터를 가져온다.
-        aluResult = _latchMEMWB.aluResult.to_ulong();
-        uint32_t dataMemReadData = _latchMEMWB.dataMemReadData.to_ulong();
-        bool memToReg = _latchMEMWB.ctrlWB.memToReg.to_ulong();
-        bool regWrite = _latchMEMWB.ctrlWB.regWrite.to_ulong();
-        uint32_t regDstIdx = _latchMEMWB.regDstIdx.to_ulong();
-
-        // 2. WB을 수행한다.
-        Register<32> writeData = memToReg ? dataMemReadData : aluResult;
-        if (regWrite) {
-            _registerFile->writeRegister(regDstIdx, writeData);
-        }
-
-        // 3. PC를 업데이트한다. (mux에 따라서)
-        Register<32> _muxPCInput0 = _PC.to_ulong() + 4; // PC + 4
-        Register<32> _muxPCInput1 = _latchEXMEM.branchTargetAddr.to_ulong();
-        Register<32> _muxPCSelect = (_latchEXMEM.ctrlMEM.branch.test(0) & _latchEXMEM.aluZero.test(0));
-
-        _muxPCSrc->advanceCycle();
-//        bool pcSrc = _latchEXMEM.ctrlMEM.branch.to_ulong() && _latchEXMEM.aluZero.to_ulong();
-//        _latchIFID.pcPlus4 = pcSrc ? _latchEXMEM.branchTargetAddr.to_ulong() : _PC.to_ulong() + 4;
-//        _PC = _latchIFID.pcPlus4;
+        printf("pc AFTER ALL = 0x%08lx\n", _PC);
     }
 
     ~PipelinedCPU() {

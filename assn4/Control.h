@@ -121,38 +121,6 @@ public:
         }
     }
 
-    bool getRegDst() const {
-        return _oRegDst->test(0);
-    }
-
-    bool getALUSrc() const {
-        return _oALUSrc->test(0);
-    }
-
-    uint8_t getALUOp() const {
-        return static_cast<uint8_t>(_oALUOp->to_ulong());
-    }
-
-    bool getMemToReg() const {
-        return _oMemToReg->test(0);
-    }
-
-    bool getRegWrite() const {
-        return _oRegWrite->test(0);
-    }
-
-    bool getMemRead() const {
-        return _oMemRead->test(0);
-    }
-
-    bool getMemWrite() const {
-        return _oMemWrite->test(0);
-    }
-
-    bool getBranch() const {
-        return _oBranch->test(0);
-    }
-
 private:
 
     const Wire<6> *_iOpcode;
