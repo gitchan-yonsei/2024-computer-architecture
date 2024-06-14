@@ -75,7 +75,38 @@ class Memory : public DigitalCircuit {
     }
 
     virtual void advanceCycle() {
-      /* FIXME */
+        // MemRead = 1 -> Address의 32비트 주소에서 데이터를 읽어와 ReadData에 저장
+        // MemWrite = 1 -> Address 파라미터의 32비트 주소에 WriteData 데이터를 저장
+        // big endian, little endian -> _endianness 속성
+
+        uint32_t address = static_cast<uint32_t>(_iAddress->to_ulong());
+        uint32_t writeData = static_cast<uint32_t>(_iWriteData->to_ulong());
+
+         if (_iMemRead->test(0)) { // READ
+            uint32_t readData = 0;
+            if (_endianness == LittleEndian) {
+                for (int i = 0; i < 4; ++i) {
+                    readData |= _memory[address + i].to_ulong() << (i * 8);
+                }
+            } else {
+                for (int i = 0; i < 4; ++i) {
+                    readData |= _memory[address + i].to_ulong() << ((3 - i) * 8);
+                }
+            }
+            *_oReadData = readData;
+        }
+
+          if (_iMemWrite->test(0)) {
+            if (_endianness == LittleEndian) {
+                for (int i = 0; i < 4; ++i) {
+                    _memory[address + i] = (writeData >> (i * 8)) & 0xFF;
+                }
+            } else {
+                for (int i = 0; i < 4; ++i) {
+                    _memory[address + i] = (writeData >> ((3 - i) * 8)) & 0xFF;
+                }
+            }
+        }
     }
 
     ~Memory() {
