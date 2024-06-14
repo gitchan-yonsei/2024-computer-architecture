@@ -96,7 +96,19 @@ class PipelinedCPU : public DigitalCircuit {
       const char *instMemFileName,
       const char *dataMemFileName
     ) : DigitalCircuit(name) {
-      /* FIXME */
+        _currCycle = 0;
+
+        _PC = initialPC;
+
+        _registerFile =
+                new RegisterFile(&_regFileReadRegister1,   // $rs
+                                 &_regFileReadRegister2,   // $rt
+                                 &_latchEXMEM.regDstIdx,   // Destination register index
+                                 &_muxMemToRegOutput,      // Data to write back to the register
+                                 &_latchMEMWB.ctrlWB.regWrite, // RegWrite control signal
+                                 &_latchIDEX.regFileReadData1, // ReadData1
+                                 &_latchIDEX.regFileReadData2, // ReadData2
+                                 regFileName);
     }
 
     virtual void advanceCycle() {
