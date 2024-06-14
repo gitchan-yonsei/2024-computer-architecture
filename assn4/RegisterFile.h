@@ -82,6 +82,12 @@ public:
         return _oReadData2->to_ulong();
     }
 
+    void writeRegister(uint32_t regIdx, uint32_t data) {
+        if (regIdx != 0) { // $0 레지스터에는 값을 쓸 수 없음
+            _registers[regIdx] = data;
+        }
+    }
+
 private:
 
     const Wire<5> *_iReadRegister1;
