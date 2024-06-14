@@ -82,7 +82,7 @@ public:
         return _oReadData2->to_ulong();
     }
 
-    void writeRegister(uint32_t regIdx, uint32_t data) {
+    void writeRegister(uint32_t regIdx, std::bitset<32> data) {
         if (regIdx != 0) { // $0 레지스터에는 값을 쓸 수 없음
             _registers[regIdx] = data;
         }

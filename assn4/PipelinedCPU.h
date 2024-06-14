@@ -188,8 +188,6 @@ public:
     virtual void advanceCycle() {
         _currCycle += 1;
 
-        /* FIXME: implement the per-cycle behavior of the five-stage pipelined MIPS CPU */
-
         // Instruction Fetch (IF) Stage
         _instMemory->advanceCycle();
         _latchIFID.pcPlus4 = _PC.to_ulong() + 4;
@@ -244,10 +242,17 @@ public:
         Register<1> aluSrc = _latchIDEX.ctrlEX.aluSrc;
         Register<1> regDst = _latchIDEX.ctrlEX.regDst;
 
+        // ALU의 두 번째 입력을 결정하는 MUX
+        uint32_t aluInput1 = aluSrc.to_ulong() ? signExtImmediate : regFileReadData2;
+
         // 2. ALU Control 신호에 따라서 ALU 돌리기
         _aluControlInput = signExtImmediate & 0x3F; // funct 필드
         _aluControl->advanceCycle();
         _alu->advanceCycle();
+
+        _latchEXMEM.branchTargetAddr = _latchIDEX.pcPlus4.to_ulong() + (_latchIDEX.signExtImmediate.to_ulong() << 2);
+        _latchEXMEM.aluResult = _alu->getResult();
+        _latchEXMEM.aluZero = _alu->getZero();
 
         // EX/MEM 래치에 데이터 저장
         _latchEXMEM.aluResult = _alu->getResult();
@@ -257,7 +262,11 @@ public:
         _latchEXMEM.regDstIdx = regDst.to_ulong() ? _latchIDEX.rd : _latchIDEX.rt;
 
         _latchEXMEM.ctrlWB = _latchIDEX.ctrlWB;
-        _latchEXMEM.ctrlMEM = _latchIDEX.ctrlMEM;\
+        _latchEXMEM.ctrlMEM = _latchIDEX.ctrlMEM;
+
+        // Branch 결정 및 주소 계산
+        Register<32> _branchTargetAddr = _latchEXMEM.branchTargetAddr;
+        _muxPCSrcSelect = _latchEXMEM.ctrlMEM.branch.to_ulong() && _latchEXMEM.aluZero.to_ulong();
 
         // Memory Access (MEM) Stage
 
@@ -273,7 +282,11 @@ public:
         _dataMemory->advanceCycle();
 
         // 3. MEM/WB 래치에 저장한다.
-        _latchMEMWB.dataMemReadData = _dataMemory->getReadData();
+        if (memRead) {
+            _latchMEMWB.dataMemReadData = _dataMemory->getReadData();
+        } else {
+            _latchMEMWB.dataMemReadData = 0;
+        }
         _latchMEMWB.aluResult = _latchEXMEM.aluResult;
         _latchMEMWB.regDstIdx = _latchEXMEM.regDstIdx;
 
@@ -289,15 +302,20 @@ public:
         uint32_t regDstIdx = _latchMEMWB.regDstIdx.to_ulong();
 
         // 2. WB을 수행한다.
-        uint32_t writeData = memToReg ? dataMemReadData : aluResult;
+        Register<32> writeData = memToReg ? dataMemReadData : aluResult;
         if (regWrite) {
             _registerFile->writeRegister(regDstIdx, writeData);
         }
 
         // 3. PC를 업데이트한다. (mux에 따라서)
-        bool pcSrc = _latchEXMEM.ctrlMEM.branch.to_ulong() && _latchEXMEM.aluZero.to_ulong();
-        _latchIFID.pcPlus4 = pcSrc ? _latchEXMEM.branchTargetAddr.to_ulong() : _PC.to_ulong() + 4;
-        _PC = _latchIFID.pcPlus4;
+        Register<32> _muxPCInput0 = _PC.to_ulong() + 4; // PC + 4
+        Register<32> _muxPCInput1 = _latchEXMEM.branchTargetAddr.to_ulong();
+        Register<32> _muxPCSelect = (_latchEXMEM.ctrlMEM.branch.test(0) & _latchEXMEM.aluZero.test(0));
+
+        _muxPCSrc->advanceCycle();
+//        bool pcSrc = _latchEXMEM.ctrlMEM.branch.to_ulong() && _latchEXMEM.aluZero.to_ulong();
+//        _latchIFID.pcPlus4 = pcSrc ? _latchEXMEM.branchTargetAddr.to_ulong() : _PC.to_ulong() + 4;
+//        _PC = _latchIFID.pcPlus4;
     }
 
     ~PipelinedCPU() {
